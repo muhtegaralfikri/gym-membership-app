@@ -32,6 +32,7 @@ export class AuthService {
       const newUser = await this.usersService.create({
         email: registerDto.email,
         name: registerDto.name,
+        phone: registerDto.phone,
         password: registerDto.password,
         // Kita set default role 'Member' (ID 2)
         // Ini asumsi, kita akan perbaiki nanti
