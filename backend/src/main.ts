@@ -17,6 +17,7 @@ async function bootstrap() {
     .setDescription('API documentation for the Fullstack Gym Membership App')
     .setVersion('1.0')
     .addTag('gym') // Tag opsional
+    .addBearerAuth() // <-- TAMBAHKAN BARIS INI
     .build();
 
   // 3. Buat dokumen Swagger
