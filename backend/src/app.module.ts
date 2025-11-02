@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { PackagesModule } from './packages/packages.module';
 import { TransactionsModule } from './transactions/transactions.module';
+import { MembershipsModule } from './memberships/memberships.module';
 
 @Module({
   imports: [
@@ -15,7 +16,8 @@ import { TransactionsModule } from './transactions/transactions.module';
     AuthModule, // <-- 3. Kita juga akan butuh ini (tambahkan jika belum ada)
     UsersModule,
     PackagesModule,
-    TransactionsModule, // <-- 4. Dan ini (tambahkan jika belum ada)
+    TransactionsModule,
+    MembershipsModule, // <-- 4. Dan ini (tambahkan jika belum ada)
   ],
   controllers: [AppController],
   providers: [AppService],
