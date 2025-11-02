@@ -2,8 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore, type UserProfile } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import api from '@/services/api' // <-- 1. Import 'api' kita
 
-// --- 1. Tipe data baru untuk Membership ---
+// --- Tipe data baru untuk Membership ---
 interface Membership {
   id: number
   startDate: string
@@ -19,9 +20,7 @@ const authStore = useAuthStore()
 const router = useRouter()
 
 const profile = ref<UserProfile | null>(null)
-// --- 2. State baru untuk memberships ---
 const memberships = ref<Membership[]>([])
-// -------------------------------------
 const message = ref('')
 
 // Fungsi untuk memformat tanggal (helper)
@@ -33,7 +32,6 @@ const formatDate = (dateString: string) => {
   })
 }
 
-// onMounted akan memuat data profil DAN membership
 onMounted(async () => {
   if (!authStore.isAuthenticated) {
     message.value = 'Anda harus login untuk melihat halaman ini.'
@@ -41,41 +39,41 @@ onMounted(async () => {
   }
 
   try {
-    // --- 3. Kita jalankan 2 fetch secara paralel ---
+    // --- 2. GANTI SEMUA FETCH DENGAN API.GET ---
+    // Kita jalankan 2 request API secara paralel
     const [profileResponse, membershipResponse] = await Promise.all([
-      // Panggilan pertama: ambil profil
-      fetch('http://localhost:3000/users/profile', {
-        method: 'GET',
-        headers: { ...authStore.authHeader },
-      }),
-      // Panggilan kedua: ambil status membership
-      fetch('http://localhost:3000/memberships/my-status', {
-        method: 'GET',
-        headers: { ...authStore.authHeader },
-      }),
+      // 'api' otomatis menambahkan base URL + header token
+      api.get('/users/profile'),
+      api.get('/memberships/my-status'),
     ])
-    // -------------------------------------------
 
-    // Proses data profil
-    if (!profileResponse.ok) throw new Error('Gagal mengambil profil')
-    const profileData: UserProfile = await profileResponse.json()
+    // Di Axios, data ada di 'response.data'
+    const profileData: UserProfile = profileResponse.data
     profile.value = profileData
     authStore.setUser(profileData)
 
-    // Proses data membership
-    if (!membershipResponse.ok) throw new Error('Gagal mengambil status membership')
-    const membershipData: Membership[] = await membershipResponse.json()
+    const membershipData: Membership[] = membershipResponse.data
     memberships.value = membershipData
 
   } catch (error: any) {
-    message.value = error.message
-    if (error.message.includes('Unauthorized')) {
-      authStore.logout()
-      router.push('/login')
+    // --- 3. ERROR HANDLING AXIOS ---
+    if (error.response) {
+      // Jika error 401 (token expired/tidak valid), paksa logout
+      if (error.response.status === 401) {
+        message.value = 'Sesi Anda telah berakhir. Silakan login kembali.'
+        authStore.logout()
+        router.push('/login')
+      } else {
+        message.value =
+          error.response.data.message || 'Gagal mengambil data profil.'
+      }
+    } else {
+      message.value = 'Terjadi kesalahan jaringan.'
     }
   }
 })
 
+// Fungsi logout tidak berubah
 // const handleLogout = () => {
 //   authStore.logout()
 //   router.push('/login')
@@ -85,7 +83,6 @@ onMounted(async () => {
 <template>
   <div class="profile-page">
     <div v-if="message" class="message">{{ message }}</div>
-
     <p v-if="!profile && !message">Memuat data...</p>
 
     <div v-if="profile" class="profile-section">
@@ -99,23 +96,18 @@ onMounted(async () => {
           {{ formatDate(profile.createdAt) }}
         </p>
       </div>
-      <!-- <button @click="handleLogout" class="logout-button">
-        Logout
-      </button> -->
-    </div>
+      </div>
 
     <div v-if="profile" class="membership-section">
       <h2>Status Membership Saya</h2>
-      
       <div v-if="!memberships.length">
         <p>Anda belum memiliki paket membership aktif.</p>
-        <a href="/">Beli paket sekarang</a>
+        <RouterLink to="/packages">Beli paket sekarang</RouterLink>
       </div>
-
       <div v-else class="membership-list">
-        <div 
-          v-for="mem in memberships" 
-          :key="mem.id" 
+        <div
+          v-for="mem in memberships"
+          :key="mem.id"
           :class="['membership-card', mem.status]"
         >
           <h4>{{ mem.package.name }}</h4>
@@ -127,15 +119,15 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-    </div>
+  </div>
 </template>
 
 <style scoped>
+/* Style tidak berubah */
 .profile-page {
   max-width: 800px;
   margin: 2rem auto;
 }
-
 .profile-section,
 .membership-section {
   padding: 1.5rem;
@@ -143,25 +135,13 @@ onMounted(async () => {
   border-radius: 8px;
   margin-bottom: 2rem;
 }
-
 .profile-details p {
   text-align: left;
   line-height: 1.6;
 }
-
 .message {
   color: red;
 }
-
-.logout-button {
-  margin-top: 1rem;
-  background-color: #ff4d4d;
-  color: white;
-  width: auto;
-  float: right;
-}
-
-/* Style untuk card membership */
 .membership-list {
   display: flex;
   flex-direction: column;
@@ -174,13 +154,13 @@ onMounted(async () => {
   text-align: left;
 }
 .membership-card.active {
-  border-left: 5px solid #42b883; /* Hijau (Aktif) */
+  border-left: 5px solid #42b883;
 }
 .membership-card.upcoming {
-  border-left: 5px solid #ffc107; /* Kuning (Upcoming) */
+  border-left: 5px solid #ffc107;
 }
 .membership-card.expired {
-  border-left: 5px solid #555; /* Abu-abu (Expired) */
+  border-left: 5px solid #555;
   opacity: 0.7;
 }
 .membership-card h4 {
