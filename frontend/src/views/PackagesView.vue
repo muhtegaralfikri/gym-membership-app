@@ -90,7 +90,7 @@ const handleBuy = async (packageId: number) => {
       <div v-for="pkg in packages" :key="pkg.id" class="package-card">
         <h3>{{ pkg.name }}</h3>
         <p class="price">
-          Rp {{ Number(pkg.price).toLocaleString('id-ID') }}
+          Rp{{ Number(pkg.price).toLocaleString('id-ID') }}
         </p>
         <p class="duration">{{ pkg.durationDays }} Hari</p>
         <p class="description">{{ pkg.description }}</p>
