@@ -1,47 +1,49 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-// 1. Import RouterLink
-import { RouterLink, useRouter } from 'vue-router'
+// 1. Import hook dari router dan store
+import { useRouter, RouterLink } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
 
-const name = ref('')
 const email = ref('')
 const password = ref('')
-const phone = ref('')
 const message = ref('')
 
-// 2. Inisialisasi router
+// 2. Inisialisasi store dan router
+const authStore = useAuthStore()
 const router = useRouter()
 
-const handleRegister = async () => {
-  message.value = '' 
+const handleLogin = async () => {
+  message.value = ''
   try {
-    const response = await fetch('http://localhost:3000/auth/register', {
-      // ... (fetch config tidak berubah)
+    const response = await fetch('http://localhost:3000/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        name: name.value,
         email: email.value,
         password: password.value,
-        phone: phone.value || undefined,
       }),
     })
 
     const data = await response.json()
 
     if (!response.ok) {
-      throw new Error(data.message || 'Registration failed')
+      throw new Error(data.message || 'Login failed')
     }
 
-    message.value = `Registrasi sukses! Selamat datang, ${data.name}. Mengalihkan ke login...`
-    
-    // 3. Redirect ke halaman login setelah sukses
+    // --- INI PERUBAHAN UTAMANYA ---
+    // 3. Simpan token ke Pinia Store
+    authStore.setToken(data.access_token)
+
+    message.value = 'Login sukses! Mengalihkan ke halaman utama...'
+
+    // 4. Redirect user ke Halaman Utama ('/') setelah 1 detik
     setTimeout(() => {
-      router.push('/login')
-    }, 1500)
-    
+      router.push('/')
+    }, 1000)
+    // ---------------------------------
+
   } catch (error: any) {
     message.value = error.message
   }
@@ -49,40 +51,34 @@ const handleRegister = async () => {
 </script>
 
 <template>
-  <div class="register-page">
-    <h2>Registrasi Member Baru</h2>
+  <div class="login-page">
+    <h2>Login Member</h2>
     
-    <form @submit.prevent="handleRegister">
-      <div class="form-group">
-        <label for="name">Nama Lengkap:</label>
-        <input type="text" id="name" v-model="name" required />
-      </div>
+    <form @submit.prevent="handleLogin">
       <div class="form-group">
         <label for="email">Email:</label>
         <input type="email" id="email" v-model="email" required />
       </div>
+      
       <div class="form-group">
-        <label for="password">Password (min. 8 karakter):</label>
+        <label for="password">Password:</label>
         <input type="password" id="password" v-model="password" required />
       </div>
-      <div class="form-group">
-        <label for="phone">No. Telepon (Opsional):</label>
-        <input type="tel" id="phone" v-model="phone" />
-      </div>
-      <button type="submit">Daftar</button>
+      
+      <button type="submit">Login</button>
     </form>
 
     <p v-if="message" class="message">{{ message }}</p>
 
     <p>
-      Sudah punya akun? <RouterLink to="/login">Login di sini</RouterLink>
+      Belum punya akun? <RouterLink to="/register">Daftar di sini</RouterLink>
     </p>
   </div>
 </template>
 
 <style scoped>
 /* Style tidak berubah */
-.register-page {
+.login-page {
   max-width: 400px;
   margin: 2rem auto;
   padding: 1rem;
