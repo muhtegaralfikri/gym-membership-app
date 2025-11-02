@@ -8,6 +8,7 @@ import { ConfigModule } from '@nestjs/config';
 import { PackagesModule } from './packages/packages.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { MembershipsModule } from './memberships/memberships.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { MembershipsModule } from './memberships/memberships.module';
     UsersModule,
     PackagesModule,
     TransactionsModule,
-    MembershipsModule, // <-- 4. Dan ini (tambahkan jika belum ada)
+    MembershipsModule,
+    PaymentsModule, // <-- 4. Dan ini (tambahkan jika belum ada)
   ],
   controllers: [AppController],
   providers: [AppService],
