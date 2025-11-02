@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { UserResponseDto } from './dto/user-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -46,5 +47,23 @@ export class UsersService {
     return this.prisma.user.findUnique({
       where: { id },
     });
+  }
+
+  /**
+   * Method untuk memperbarui data user (dipakai oleh profile update)
+   */
+  // 2. Ubah return type di sini
+  async update(
+    id: number,
+    data: Prisma.UserUpdateInput,
+  ): Promise<UserResponseDto> {
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...result } = updatedUser;
+    return result; // 'result' sekarang cocok dengan 'UserResponseDto'
   }
 }
