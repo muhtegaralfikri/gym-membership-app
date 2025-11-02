@@ -3,38 +3,38 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-// 1. Import Swagger
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // --- TAMBAHKAN BLOK INI ---
   app.enableCors({
-    origin: 'http://localhost:5173', // URL frontend Vue.js kamu
+    origin: [
+      'http://localhost:5173', // <-- Izinkan localhost (untuk dev)
+      // Nanti kita tambahkan URL Vercel di sini
+    ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
-  // --- BATAS TAMBAHAN ---
 
   app.useGlobalPipes(new ValidationPipe());
 
-  // 2. Konfigurasi Swagger DocumentBuilder
+  // ... (Swagger config tidak berubah)
   const config = new DocumentBuilder()
     .setTitle('Gym Membership API')
     .setDescription('API documentation for the Fullstack Gym Membership App')
     .setVersion('1.0')
-    .addTag('gym') // Tag opsional
-    .addBearerAuth() // <-- TAMBAHKAN BARIS INI
+    .addTag('gym')
+    .addBearerAuth()
     .build();
-
-  // 3. Buat dokumen Swagger
   const document = SwaggerModule.createDocument(app, config);
-
-  // 4. Setup endpoint untuk Swagger UI
-  // Ini berarti UI-nya akan ada di http://localhost:3000/api
   SwaggerModule.setup('api', app, document);
 
-  await app.listen(3000);
+  // --- INI PERUBAHANNYA ---
+  // Ambil port dari environment variable, atau default ke 3000
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
+  console.log(`Application is running on: ${await app.getUrl()}`); // <-- Tambahan log
+  // --- BATAS PERUBAHAN ---
 }
 void bootstrap();
