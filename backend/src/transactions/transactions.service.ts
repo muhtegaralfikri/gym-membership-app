@@ -6,57 +6,96 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PackagesService } from 'src/packages/packages.service'; // 1. Import PackagesService
+import { PackagesService } from 'src/packages/packages.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { v4 as uuidv4 } from 'uuid'; // 2. Import uuid
+import { v4 as uuidv4 } from 'uuid';
+import { ConfigService } from '@nestjs/config'; // <-- 1. Import ConfigService
+import * as midtransClient from 'midtrans-client'; // <-- 2. Import Midtrans
+import type {
+  SnapTransactionParams,
+  SnapTransactionResponse,
+} from 'midtrans-client';
 
 @Injectable()
 export class TransactionsService {
-  // 3. Inject kedua service
+  // <-- 3. Buat instance Midtrans Snap
+  private snap: midtransClient.Snap;
+
   constructor(
     private prisma: PrismaService,
     private packagesService: PackagesService,
-  ) {}
-
-  /**
-   * Method untuk membuat transaksi baru (status 'pending')
-   */
-  async create(
-    createTransactionDto: CreateTransactionDto,
-    userId: number, // Kita butuh ID user yang sedang login
+    private configService: ConfigService, // <-- 4. Inject ConfigService
   ) {
-    const { packageId } = createTransactionDto;
+    // 5. Inisialisasi Midtrans Snap saat service dibuat
+    this.snap = new midtransClient.Snap({
+      isProduction:
+        this.configService.get<boolean>('MIDTRANS_IS_PRODUCTION') ?? false,
+      serverKey: this.configService.getOrThrow<string>('MIDTRANS_SERVER_KEY'),
+      clientKey: this.configService.getOrThrow<string>('MIDTRANS_CLIENT_KEY'),
+    });
+  }
 
-    // 4. Ambil detail paket dari PackagesService
+  async create(createTransactionDto: CreateTransactionDto, userId: number) {
+    const { packageId } = createTransactionDto;
     const pkg = await this.packagesService.findById(packageId);
 
-    // 5. Validasi paket
     if (!pkg || !pkg.isActive) {
       throw new NotFoundException('Package not found or is not active');
     }
 
+    // Ambil data user (kita butuh email/nama untuk Midtrans)
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const orderId = uuidv4(); // Kita tetap pakai UUID kita
+
+    // 6. Buat parameter untuk Midtrans
+    const parameter: SnapTransactionParams = {
+      transaction_details: {
+        order_id: orderId, // <-- Pakai orderId kita
+        gross_amount: pkg.price.toNumber(), // Pastikan ini number
+      },
+      item_details: [
+        {
+          id: `PKG-${pkg.id}`,
+          price: pkg.price.toNumber(),
+          quantity: 1,
+          name: pkg.name,
+        },
+      ],
+      customer_details: {
+        first_name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+      },
+    };
+
     try {
-      // 6. Buat transaksi baru di database
+      // 7. Buat transaksi di database kita (status 'pending')
       const newTransaction = await this.prisma.transaction.create({
         data: {
-          orderId: uuidv4(), // 7. Generate Order ID unik
-          amount: pkg.price, // 8. Ambil harga dari paket
-          status: 'pending', // 9. Status awal
-          user: {
-            connect: { id: userId }, // Hubungkan ke user
-          },
-          package: {
-            connect: { id: packageId }, // Hubungkan ke paket
-          },
+          orderId: orderId,
+          amount: pkg.price,
+          status: 'pending',
+          user: { connect: { id: userId } },
+          package: { connect: { id: packageId } },
         },
       });
 
-      // 10. Kembalikan URL pembayaran (dummy untuk sekarang)
-      // Nanti ini akan diganti dengan response dari Midtrans/payment gateway
+      // 8. Panggil API Midtrans untuk mendapatkan payment token
+      const midtransTransaction: SnapTransactionResponse =
+        await this.snap.createTransaction(parameter);
+      const { token: paymentToken, redirect_url: paymentUrl } =
+        midtransTransaction;
+
+      // 9. Kembalikan payment URL (dan token jika dibutuhkan) ke frontend
       return {
         message: 'Transaction created successfully.',
         orderId: newTransaction.orderId,
-        paymentUrl: `https://dummy-payment-gateway.com/pay?order_id=${newTransaction.orderId}`,
+        paymentUrl,
+        paymentToken, // <-- Frontend bisa pakai Snap token saat memanggil snap.pay
       };
     } catch (error) {
       console.error(error);

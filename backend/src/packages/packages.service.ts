@@ -1,5 +1,3 @@
-// src/packages/packages.service.ts
-
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreatePackageDto } from './dto/create-package.dto';
@@ -9,8 +7,6 @@ import { Prisma } from '@prisma/client';
 @Injectable()
 export class PackagesService {
   constructor(private prisma: PrismaService) {}
-
-  // ... (method findAllActive dan findById tidak berubah) ...
 
   findAllActive() {
     return this.prisma.package.findMany({
@@ -25,8 +21,6 @@ export class PackagesService {
     });
   }
 
-  // --- Method Admin Baru (FIXED) ---
-
   /**
    * (Admin) Membuat paket baru
    */
@@ -35,9 +29,8 @@ export class PackagesService {
     return this.prisma.package.create({
       data: {
         ...rest,
-        // FIX:
-        // 1. Gunakan 'null' langsung, bukan 'Prisma.DbNull'
-        // 2. Casting hasil parse ke tipe yang diharapkan Prisma
+        // FIX: (Menggunakan koreksimu)
+        // Jika 'features' ada, parse. Jika tidak, set ke DB NULL.
         features: features
           ? (JSON.parse(features) as Prisma.InputJsonValue)
           : Prisma.JsonNull,
@@ -63,14 +56,19 @@ export class PackagesService {
     const data: Prisma.PackageUpdateInput = { ...rest };
 
     // FIX:
-    // 1. Cek jika 'features' ada di DTO (bukan undefined)
-    // 2. Jika ada, parse dan cast ke tipe yang diharapkan Prisma
-    //    (JSON.parse("null") akan menjadi 'null' yang valid)
+    // Kita harus menangani 3 kasus untuk 'features':
+    // 1. undefined: Jangan update field ini (default behavior).
+    // 2. null: Client ingin mengosongkan field ini -> Prisma.JsonNull
+    // 3. string: Client mengirim data baru -> JSON.parse(...)
+
     if (features !== undefined) {
-      data.features = JSON.parse(features) as Prisma.InputJsonValue;
+      if (features === null) {
+        data.features = Prisma.JsonNull;
+      } else {
+        // Jika features adalah string (termasuk "null" atau "[]")
+        data.features = JSON.parse(features) as Prisma.InputJsonValue;
+      }
     }
-    // Jika 'features' adalah undefined, kita tidak menambahkannya ke
-    // 'data', sehingga Prisma tidak akan meng-update field tersebut.
 
     return this.prisma.package.update({
       where: { id },

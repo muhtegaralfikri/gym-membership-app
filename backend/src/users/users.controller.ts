@@ -1,62 +1,122 @@
 // src/users/users.controller.ts
 
-import { Controller, Get, Req, UseGuards, Put, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Req,
+  UseGuards,
+  Put,
+  Body,
+  Param, // <-- 1. Import Param
+  ParseIntPipe, // <-- 2. Import ParseIntPipe
+} from '@nestjs/common';
 import { Request } from 'express';
 import { UsersService } from './users.service';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard'; // 1. Import Guard
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {
   ApiTags,
   ApiOperation,
   ApiOkResponse,
-  ApiBearerAuth, // 2. Import untuk Swagger
+  ApiBearerAuth,
   ApiUnauthorizedResponse,
-  ApiBadRequestResponse, // 2. Import ini
+  ApiBadRequestResponse,
+  ApiForbiddenResponse, // <-- 3. Import ApiForbiddenResponse
+  ApiNotFoundResponse, // <-- 4. Import ApiNotFoundResponse
 } from '@nestjs/swagger';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
-@ApiTags('Users') // 3. Grup-kan di Swagger
-@Controller('users') // Endpoint akan diawali /users
+// --- 5. Import dependensi untuk Admin ---
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { Role } from 'src/auth/enums/role.enum';
+import { UpdateUserAdminDto } from './dto/update-user-admin.dto'; // <-- DTO baru
+
+@ApiTags('Users')
+@Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
   /**
-   * Endpoint untuk mendapatkan profil user yang sedang login
+   * (Member/Admin) Endpoint untuk mendapatkan profil user yang sedang login
    * GET /users/profile
    */
   @Get('profile')
-  @UseGuards(JwtAuthGuard) // 4. KUNCI ENDPOINT INI!
-  @ApiBearerAuth() // 5. Beri tahu Swagger ini butuh Bearer Token
-  @ApiOperation({ summary: 'Get current user profile' })
+  @UseGuards(JwtAuthGuard) // <-- Hanya cek token (Authn)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile (Member/Admin)' })
   @ApiOkResponse({
     description: 'User profile retrieved successfully.',
-    type: UserResponseDto, // 6. Definisikan response-nya
+    type: UserResponseDto,
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
   getProfile(@Req() req: Request & { user: UserResponseDto }): UserResponseDto {
-    // 7. Ambil 'user' dari object request
-    // 'user' ini otomatis diisi oleh JwtStrategy kita
     return req.user;
   }
 
   /**
-   * Endpoint untuk memperbarui profil user yang sedang login
+   * (Member/Admin) Endpoint untuk memperbarui profil user yang sedang login
    * PUT /users/profile
    */
-  @Put('profile') // 4. Definisikan sebagai PUT
-  @UseGuards(JwtAuthGuard) // 5. Kunci endpoint ini
-  @ApiBearerAuth() // 6. Tandai butuh token di Swagger
-  @ApiOperation({ summary: 'Update current user profile' })
+  @Put('profile')
+  @UseGuards(JwtAuthGuard) // <-- Hanya cek token (Authn)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update current user profile (Member/Admin)' })
   @ApiOkResponse({
     description: 'User profile updated successfully.',
-    type: UserResponseDto, // 7. Response-nya adalah user yang sudah di-update
+    type: UserResponseDto,
   })
   @ApiBadRequestResponse({ description: 'Invalid input data.' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
   updateProfile(
-    @Req() req: Request & { user: UserResponseDto }, // 8. Ambil user dari token
-    @Body() updateUserDto: UpdateUserDto, // 9. Ambil data baru dari body
+    @Req() req: Request & { user: UserResponseDto },
+    @Body() updateUserDto: UpdateUserDto, // <-- DTO standar
   ): Promise<UserResponseDto> {
-    // 10. Panggil service-nya
     return this.usersService.update(req.user.id, updateUserDto);
+  }
+
+  // --- ENDPOINT ADMIN BARU ---
+
+  /**
+   * (Admin) Mengambil semua user
+   * GET /users
+   */
+  @Get() // <-- GET di root /users
+  @UseGuards(JwtAuthGuard, RolesGuard) // <-- 6. Terapkan Authn dan Authz
+  @Roles(Role.Admin) // <-- 7. Hanya Admin
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all users (Admin Only)' })
+  @ApiOkResponse({
+    description: 'List of all users retrieved.',
+    type: [UserResponseDto], // <-- Mengembalikan array UserResponseDto
+  })
+  @ApiForbiddenResponse({ description: 'Forbidden.' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
+  findAllUsers() {
+    return this.usersService.findAll();
+  }
+
+  /**
+   * (Admin) Memperbarui data user spesifik
+   * PUT /users/:id
+   */
+  @Put(':id') // <-- PUT di /users/:id
+  @UseGuards(JwtAuthGuard, RolesGuard) // <-- 6. Terapkan Authn dan Authz
+  @Roles(Role.Admin) // <-- 7. Hanya Admin
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a specific user (Admin Only)' })
+  @ApiOkResponse({
+    description: 'User updated successfully.',
+    type: UserResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Invalid input data.' })
+  @ApiForbiddenResponse({ description: 'Forbidden.' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
+  @ApiNotFoundResponse({ description: 'User not found.' }) // <-- Tambahan
+  updateUserByAdmin(
+    @Param('id', ParseIntPipe) id: number, // <-- 8. Ambil ID dari URL
+    @Body() updateUserAdminDto: UpdateUserAdminDto, // <-- 9. Pakai DTO Admin
+  ): Promise<UserResponseDto> {
+    return this.usersService.updateByAdmin(id, updateUserAdminDto);
   }
 }
