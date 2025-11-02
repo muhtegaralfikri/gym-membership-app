@@ -9,6 +9,14 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // --- TAMBAHKAN BLOK INI ---
+  app.enableCors({
+    origin: 'http://localhost:5173', // URL frontend Vue.js kamu
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
+  // --- BATAS TAMBAHAN ---
+
   app.useGlobalPipes(new ValidationPipe());
 
   // 2. Konfigurasi Swagger DocumentBuilder
