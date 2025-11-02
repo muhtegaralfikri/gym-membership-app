@@ -3,10 +3,11 @@
 import { RouterView } from 'vue-router'
 
 // 2. (Opsional) Kamu bisa tambahkan komponen Navbar/Header di sini nanti
-// import Navbar from './components/Navbar.vue' 
+import Navbar from './components/Navbar.vue' 
 </script>
 
 <template>
+  <Navbar />
   <main>
     <RouterView />
   </main>
