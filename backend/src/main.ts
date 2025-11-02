@@ -10,7 +10,9 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      'http://localhost:5173', // <-- Izinkan localhost (untuk dev)
+      'http://localhost:5173',
+      'https://gym-membership-app-lake.vercel.app',
+      'https://www.vuenest.my.id'// <-- Izinkan localhost (untuk dev)
       // Nanti kita tambahkan URL Vercel di sini
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
