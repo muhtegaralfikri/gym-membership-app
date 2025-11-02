@@ -14,7 +14,7 @@ const handleLogout = () => {
 <template>
   <nav class="navbar">
     <div class="navbar-brand">
-      <RouterLink to="/">GYM APP</RouterLink>
+      <RouterLink to="/">VuNest GYM</RouterLink>
     </div>
     <div class="navbar-links">
       
