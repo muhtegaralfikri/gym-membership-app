@@ -23,8 +23,8 @@ class TransactionResponse {
   message: string;
   @ApiProperty()
   orderId: string;
-  @ApiProperty()
-  paymentUrl: string;
+  @ApiProperty({ example: '7cd2f5a1-acd5-4815-98dd-6d1d2b2d3a0a' })
+  paymentToken: string; // <-- Ganti 'paymentUrl' menjadi 'paymentToken'
 }
 
 @ApiTags('Transactions') // 3. Grup-kan di Swagger
@@ -41,7 +41,7 @@ export class TransactionsController {
   @ApiBearerAuth() // 5. Tandai butuh token di Swagger
   @ApiOperation({ summary: 'Create a new transaction (Member Only)' })
   @ApiCreatedResponse({
-    description: 'Transaction created, returns payment URL.',
+    description: 'Transaction created, returns payment token.',
     type: TransactionResponse, // 6. Definisikan response-nya
   })
   @ApiBadRequestResponse({ description: 'Invalid input data.' })

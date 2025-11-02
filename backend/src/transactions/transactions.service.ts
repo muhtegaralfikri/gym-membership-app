@@ -3,6 +3,7 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger, // 1. Import Logger
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -11,27 +12,45 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '@nestjs/config';
 
-// 1. Kita tetap gunakan 'require' untuk CJS compatibility
+// 2. Import Midtrans menggunakan 'require'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const midtransClient = require('midtrans-client');
 
 @Injectable()
 export class TransactionsService {
-  // 2. Kita beri tipe 'any' secara eksplisit
+  // 3. Beri tipe 'any' secara eksplisit
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private snap: any;
+  
+  // 4. Tambahkan Logger
+  private readonly logger = new Logger(TransactionsService.name);
 
   constructor(
     private prisma: PrismaService,
     private packagesService: PackagesService,
     private configService: ConfigService,
   ) {
-    // 3. Kita nonaktifkan linter untuk 'unsafe assignment' saat 'new'
+    // 5. Validasi kunci .env saat aplikasi start
+    const serverKey = this.configService.get<string>('MIDTRANS_SERVER_KEY');
+    const clientKey = this.configService.get<string>('MIDTRANS_CLIENT_KEY');
+
+    if (!serverKey || !clientKey) {
+      this.logger.error(
+        'MIDTRANS_SERVER_KEY or MIDTRANS_CLIENT_KEY is missing.',
+      );
+      throw new InternalServerErrorException(
+        'Midtrans configuration is missing.',
+      );
+    }
+    this.logger.log(`Using ServerKey starting with: ${serverKey.substring(0, 10)}...`);
+    this.logger.log('Midtrans Keys loaded successfully.'); // Pesan sukses
+
+    // 6. Nonaktifkan linter untuk 'unsafe assignment' saat 'new'
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     this.snap = new midtransClient.Snap({
       isProduction: false,
-      serverKey: this.configService.get<string>('MIDTRANS_SERVER_KEY'),
-      clientKey: this.configService.get<string>('MIDTRANS_CLIENT_KEY'),
+      serverKey: serverKey, // <-- Gunakan variabel
+      clientKey: clientKey, // <-- Gunakan variabel
     });
   }
 
@@ -76,16 +95,17 @@ export class TransactionsService {
           orderId: orderId,
           amount: pkg.price,
           status: 'pending',
+          paymentGateway: 'midtrans',
           user: { connect: { id: userId } },
           package: { connect: { id: packageId } },
         },
       });
 
-      // 4. Nonaktifkan linter untuk 'unsafe call' dan 'unsafe member access'
+      // 7. Nonaktifkan linter untuk 'unsafe call' dan 'unsafe member access'
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
       const midtransTransaction = await this.snap.createTransaction(parameter);
 
-      // 5. Nonaktifkan linter untuk 'unsafe assignment' dan 'unsafe member access'
+      // 8. Nonaktifkan linter untuk 'unsafe assignment' dan 'unsafe member access'
       // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
       const paymentToken = midtransTransaction.token;
 

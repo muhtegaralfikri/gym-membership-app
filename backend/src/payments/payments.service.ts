@@ -49,26 +49,28 @@ export class PaymentsService {
     if (transaction_status === 'settlement') {
       try {
         // 'prisma' di dalam callback ini adalah TransactionClient
-        const result = await this.prisma.$transaction(async (prisma) => {
-          // Update status transaksi kita menjadi 'success'
-          const updatedTransaction = await prisma.transaction.update({
-            where: { id: transaction.id },
-            data: {
-              status: PaymentStatus.success,
-              paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
-            },
-          });
+        const result = await this.prisma.$transaction(
+          async (prisma) => {
+            const updatedTransaction = await prisma.transaction.update({
+              where: { id: transaction.id },
+              data: {
+                status: PaymentStatus.success,
+                paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+              },
+            });
 
-          // --- INI PERBAIKANNYA ---
-          // Kita 'pass' prisma (TransactionClient) ke service lain
-          // agar 'activateMembership' berjalan dalam konteks transaksi yang sama.
-          const membership = await this.membershipsService.activateMembership(
-            updatedTransaction.id,
-            prisma, // <-- FIX: Lewatkan 'prisma' dari $transaction
-          );
+            const membership =
+              await this.membershipsService.activateMembership(
+                updatedTransaction.id,
+                prisma,
+              );
 
-          return { updatedTransaction, membership };
-        });
+            return { updatedTransaction, membership };
+          },
+          {
+            timeout: 10000, // <-- TAMBAHKAN OPSI TIMEOUT INI (10 detik)
+          },
+        );
 
         return {
           message: 'Payment successful, membership activated.',
