@@ -1,12 +1,13 @@
 // src/users/users.service.ts
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UserResponseDto } from './dto/user-response.dto';
 // 1. Import DTO admin yang baru
 import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
+import { CreateUserAdminDto } from './dto/create-user-admin.dto';
 
 @Injectable()
 export class UsersService {
@@ -19,6 +20,44 @@ export class UsersService {
     return result;
   }
 
+  /**
+   * (Admin) Membuat user baru secara manual
+   */
+  async createByAdmin(dto: CreateUserAdminDto): Promise<UserResponseDto> {
+    const { roleId, password, ...rest } = dto;
+
+    // 1. Hash password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // 2. Buat user baru di database
+    const newUser = await this.prisma.user.create({
+      data: {
+        ...rest,
+        password: hashedPassword,
+        role: {
+          connect: { id: roleId }, // 3. Hubungkan ke Role ID
+        },
+      },
+    });
+
+    return this.excludePassword(newUser); // Kembalikan DTO yang aman
+  }
+
+  /**
+   * (Admin) Mengambil detail satu user by ID (tanpa password)
+   */
+  async findOneById(id: number): Promise<UserResponseDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+
+    return this.excludePassword(user); // Kembalikan DTO yang aman
+  }
   /**
    * Method untuk membuat user baru (dipakai saat register)
    */
