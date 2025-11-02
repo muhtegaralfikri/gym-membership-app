@@ -1,3 +1,5 @@
+// src/payments/payments.service.ts
+
 import {
   BadRequestException,
   Injectable,
@@ -7,7 +9,7 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MembershipsService } from 'src/memberships/memberships.service';
 import { PaymentNotificationDto } from './dto/payment-notification.dto';
-import { PaymentStatus, Prisma } from '@prisma/client'; // Import Prisma untuk tipe JSON jika perlu
+import { PaymentStatus, Prisma } from '@prisma/client';
 
 @Injectable()
 export class PaymentsService {
@@ -28,7 +30,6 @@ export class PaymentsService {
     });
 
     if (!transaction) {
-      // <-- FIX 1: String dipecah ke baris baru
       throw new NotFoundException(
         `Transaction with order_id ${order_id} not found`,
       );
@@ -47,18 +48,23 @@ export class PaymentsService {
     // 4. Proses berdasarkan status
     if (transaction_status === 'settlement') {
       try {
+        // 'prisma' di dalam callback ini adalah TransactionClient
         const result = await this.prisma.$transaction(async (prisma) => {
+          // Update status transaksi kita menjadi 'success'
           const updatedTransaction = await prisma.transaction.update({
             where: { id: transaction.id },
             data: {
               status: PaymentStatus.success,
-              // <-- FIX 2: Hapus 'as any'. DTO adalah objek yang valid untuk JSON.
               paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
             },
           });
 
+          // --- INI PERBAIKANNYA ---
+          // Kita 'pass' prisma (TransactionClient) ke service lain
+          // agar 'activateMembership' berjalan dalam konteks transaksi yang sama.
           const membership = await this.membershipsService.activateMembership(
             updatedTransaction.id,
+            prisma, // <-- FIX: Lewatkan 'prisma' dari $transaction
           );
 
           return { updatedTransaction, membership };
@@ -71,10 +77,21 @@ export class PaymentsService {
         };
       } catch (error) {
         console.error('Failed during $transaction:', error);
-        await this.prisma.transaction.update({
-          where: { id: transaction.id },
-          data: { status: PaymentStatus.failed },
-        });
+        
+        // Cek jika error BUKAN dari 'activateMembership'
+        // (Jika error dari 'activateMembership', status sudah di-set 'failed' di sana)
+        if (!(error instanceof NotFoundException)) {
+           await this.prisma.transaction.update({
+             where: { id: transaction.id },
+             data: { status: PaymentStatus.failed },
+           });
+        }
+        
+        // Lempar error asli dari 'activateMembership' jika ada
+        if (error instanceof NotFoundException || error instanceof InternalServerErrorException) {
+          throw error;
+        }
+
         throw new InternalServerErrorException('Failed to process payment');
       }
     } else if (
@@ -86,7 +103,6 @@ export class PaymentsService {
         where: { id: transaction.id },
         data: {
           status: PaymentStatus.failed,
-          // <-- FIX 3: Hapus 'as any' di sini juga
           paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
         },
       });

@@ -1,31 +1,52 @@
+// src/memberships/memberships.service.ts
+
 import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-} from '@nestjs/common'; // <-- Dipecah per baris
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PackagesService } from 'src/packages/packages.service';
-import { MembershipStatus, PaymentStatus } from '@prisma/client';
+import { MembershipStatus, PaymentStatus, Prisma } from '@prisma/client';
+// PackagesService tidak kita perlukan di sini karena kita ambil data paket
+// langsung dari relasi 'transaction'
+// import { PackagesService } from 'src/packages/packages.service';
 
 @Injectable()
 export class MembershipsService {
   constructor(
     private prisma: PrismaService,
-    private packagesService: PackagesService, // Untuk mengambil durasi paket
+    // private packagesService: PackagesService, // Tidak diperlukan untuk 2 method ini
   ) {}
+
+  /**
+   * Mengambil semua data membership milik satu user
+   * (Baik untuk 'My Account' atau pengecekan Admin)
+   */
+  async findUserMemberships(userId: number) {
+    return this.prisma.userMembership.findMany({
+      where: { userId: userId },
+      include: {
+        package: true, // Sertakan detail paketnya
+      },
+      orderBy: {
+        endDate: 'desc', // Tampilkan yang paling baru/aktif di atas
+      },
+    });
+  }
 
   /**
    * Mengaktifkan membership setelah transaksi berhasil.
    * Ini adalah logika inti untuk "stacking" paket.
    * @param transactionId ID transaksi yang sudah 'success'
    */
-  async activateMembership(transactionId: number) {
+  async activateMembership(transactionId: number, prismaClient?: Prisma.TransactionClient) {
+    const db = prismaClient || this.prisma;
     // 1. Ambil data transaksi beserta data user dan paketnya
-    const transaction = await this.prisma.transaction.findUnique({
+    const transaction = await db.transaction.findUnique({
       where: { id: transactionId },
       include: {
         user: true,
-        package: true,
+        package: true, // Kita butuh 'durationDays' dari paket
       },
     });
 
@@ -34,7 +55,7 @@ export class MembershipsService {
     }
 
     if (!transaction.package) {
-      // <-- String di baris baru
+      // FIX: String dipecah ke baris baru
       throw new NotFoundException(
         'Package details not found for this transaction',
       );
@@ -75,8 +96,7 @@ export class MembershipsService {
         data: {
           startDate: startDate,
           endDate: endDate,
-          // Statusnya 'upcoming' jika mulainya masih nanti, 'active' jika mulainya sekarang
-          // <-- Ternary dipecah
+          // FIX: Ternary dipecah agar lolos linting
           status:
             startDate > new Date()
               ? MembershipStatus.upcoming
@@ -91,9 +111,9 @@ export class MembershipsService {
     } catch (error) {
       console.error('Failed to activate membership:', error);
       // Rollback status transaksi jika gagal
-      await this.prisma.transaction.update({
+      await db.transaction.update({
         where: { id: transactionId },
-        data: { status: PaymentStatus.failed }, // Tandai gagal jika pembuatan membership error
+        data: { status: PaymentStatus.failed },
       });
       throw new InternalServerErrorException('Could not activate membership');
     }
