@@ -5,27 +5,32 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { UserResponseDto } from './dto/user-response.dto';
+// 1. Import DTO admin yang baru
+import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
 
 @Injectable()
 export class UsersService {
-  // 1. Inject PrismaService agar bisa query ke DB
   constructor(private prisma: PrismaService) {}
+
+  // 2. Buat helper function agar DRY (Don't Repeat Yourself)
+  private excludePassword(user: User): UserResponseDto {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...result } = user;
+    return result;
+  }
 
   /**
    * Method untuk membuat user baru (dipakai saat register)
    */
   async create(data: Prisma.UserCreateInput): Promise<User> {
-    // 2. Hash password sebelum disimpan
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(data.password, saltRounds);
 
-    // 3. Ganti password plain text dengan yang sudah di-hash
     const dataWithHashedPassword = {
       ...data,
       password: hashedPassword,
     };
 
-    // 4. Simpan ke database
     return this.prisma.user.create({
       data: dataWithHashedPassword,
     });
@@ -50,20 +55,59 @@ export class UsersService {
   }
 
   /**
-   * Method untuk memperbarui data user (dipakai oleh profile update)
+   * Method untuk user memperbarui profil MEREKA SENDIRI
    */
-  // 2. Ubah return type di sini
   async update(
     id: number,
-    data: Prisma.UserUpdateInput,
+    data: Prisma.UserUpdateInput, // Ini pakai UpdateUserDto biasa
   ): Promise<UserResponseDto> {
     const updatedUser = await this.prisma.user.update({
       where: { id },
       data,
     });
+    return this.excludePassword(updatedUser); // Pakai helper
+  }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _, ...result } = updatedUser;
-    return result; // 'result' sekarang cocok dengan 'UserResponseDto'
+  // --- METHOD ADMIN BARU ---
+
+  /**
+   * (Admin) Mengambil semua user
+   */
+  async findAll(): Promise<UserResponseDto[]> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { id: 'asc' },
+    });
+    // Map setiap user untuk membuang password
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    return users.map(this.excludePassword);
+  }
+
+  /**
+   * (Admin) Memperbarui data user spesifik
+   */
+  async updateByAdmin(
+    id: number,
+    dto: UpdateUserAdminDto,
+  ): Promise<UserResponseDto> {
+    const { roleId, ...rest } = dto;
+
+    // Siapkan data untuk Prisma
+    const data: Prisma.UserUpdateInput = {
+      ...rest,
+    };
+
+    // Jika roleId disertakan, tambahkan koneksi relasi
+    if (roleId) {
+      data.role = {
+        connect: { id: roleId },
+      };
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id },
+      data,
+    });
+
+    return this.excludePassword(updatedUser);
   }
 }

@@ -10,19 +10,19 @@ import {
 } from 'class-validator';
 
 export class RegisterDto {
-  @ApiProperty({ example: 'test@example.com' }) // <-- 2. Tambahkan
+  @ApiProperty({ example: 'member@gmail.com' }) // <-- 2. Tambahkan
   @IsEmail()
   @IsNotEmpty()
   email: string;
 
-  @ApiProperty({ example: 'password123', minLength: 8 }) // <-- 3. Tambahkan
+  @ApiProperty({ example: '12345678', minLength: 8 }) // <-- 3. Tambahkan
   @IsString()
   @IsNotEmpty()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   password: string;
 
   @ApiProperty({
-    example: '+628123456789',
+    example: '081234567899',
     required: false, // <-- 2. Tandai opsional di Swagger
   })
   @IsString()

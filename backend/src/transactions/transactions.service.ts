@@ -3,60 +3,116 @@
 import {
   Injectable,
   InternalServerErrorException,
+  Logger, // 1. Import Logger
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PackagesService } from 'src/packages/packages.service'; // 1. Import PackagesService
+import { PackagesService } from 'src/packages/packages.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { v4 as uuidv4 } from 'uuid'; // 2. Import uuid
+import { v4 as uuidv4 } from 'uuid';
+import { ConfigService } from '@nestjs/config';
+
+// 2. Import Midtrans menggunakan 'require'
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const midtransClient = require('midtrans-client');
 
 @Injectable()
 export class TransactionsService {
-  // 3. Inject kedua service
+  // 3. Beri tipe 'any' secara eksplisit
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private snap: any;
+  
+  // 4. Tambahkan Logger
+  private readonly logger = new Logger(TransactionsService.name);
+
   constructor(
     private prisma: PrismaService,
     private packagesService: PackagesService,
-  ) {}
-
-  /**
-   * Method untuk membuat transaksi baru (status 'pending')
-   */
-  async create(
-    createTransactionDto: CreateTransactionDto,
-    userId: number, // Kita butuh ID user yang sedang login
+    private configService: ConfigService,
   ) {
-    const { packageId } = createTransactionDto;
+    // 5. Validasi kunci .env saat aplikasi start
+    const serverKey = this.configService.get<string>('MIDTRANS_SERVER_KEY');
+    const clientKey = this.configService.get<string>('MIDTRANS_CLIENT_KEY');
 
-    // 4. Ambil detail paket dari PackagesService
+    if (!serverKey || !clientKey) {
+      this.logger.error(
+        'MIDTRANS_SERVER_KEY or MIDTRANS_CLIENT_KEY is missing.',
+      );
+      throw new InternalServerErrorException(
+        'Midtrans configuration is missing.',
+      );
+    }
+    this.logger.log(`Using ServerKey starting with: ${serverKey.substring(0, 10)}...`);
+    this.logger.log('Midtrans Keys loaded successfully.'); // Pesan sukses
+
+    // 6. Nonaktifkan linter untuk 'unsafe assignment' saat 'new'
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    this.snap = new midtransClient.Snap({
+      isProduction: false,
+      serverKey: serverKey, // <-- Gunakan variabel
+      clientKey: clientKey, // <-- Gunakan variabel
+    });
+  }
+
+  async create(createTransactionDto: CreateTransactionDto, userId: number) {
+    const { packageId } = createTransactionDto;
     const pkg = await this.packagesService.findById(packageId);
 
-    // 5. Validasi paket
     if (!pkg || !pkg.isActive) {
       throw new NotFoundException('Package not found or is not active');
     }
 
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const orderId = uuidv4();
+
+    const parameter = {
+      transaction_details: {
+        order_id: orderId,
+        gross_amount: pkg.price.toNumber(),
+      },
+      item_details: [
+        {
+          id: `PKG-${pkg.id}`,
+          price: pkg.price.toNumber(),
+          quantity: 1,
+          name: pkg.name,
+        },
+      ],
+      customer_details: {
+        first_name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+      },
+    };
+
     try {
-      // 6. Buat transaksi baru di database
       const newTransaction = await this.prisma.transaction.create({
         data: {
-          orderId: uuidv4(), // 7. Generate Order ID unik
-          amount: pkg.price, // 8. Ambil harga dari paket
-          status: 'pending', // 9. Status awal
-          user: {
-            connect: { id: userId }, // Hubungkan ke user
-          },
-          package: {
-            connect: { id: packageId }, // Hubungkan ke paket
-          },
+          orderId: orderId,
+          amount: pkg.price,
+          status: 'pending',
+          paymentGateway: 'midtrans',
+          user: { connect: { id: userId } },
+          package: { connect: { id: packageId } },
         },
       });
 
-      // 10. Kembalikan URL pembayaran (dummy untuk sekarang)
-      // Nanti ini akan diganti dengan response dari Midtrans/payment gateway
+      // 7. Nonaktifkan linter untuk 'unsafe call' dan 'unsafe member access'
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+      const midtransTransaction = await this.snap.createTransaction(parameter);
+
+      // 8. Nonaktifkan linter untuk 'unsafe assignment' dan 'unsafe member access'
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const paymentToken = midtransTransaction.token;
+
       return {
         message: 'Transaction created successfully.',
         orderId: newTransaction.orderId,
-        paymentUrl: `https://dummy-payment-gateway.com/pay?order_id=${newTransaction.orderId}`,
+        paymentToken: paymentToken,
       };
     } catch (error) {
       console.error(error);
