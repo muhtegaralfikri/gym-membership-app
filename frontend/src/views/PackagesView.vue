@@ -3,26 +3,25 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth' // Kita butuh store untuk token
 import { useRouter } from 'vue-router'
 
-// Tipe data untuk paket (sesuai 'seed.ts' dan 'schema.prisma')
+// Tipe data untuk paket
 interface Package {
   id: number
   name: string
   description: string | null
-  price: string // Prisma mengembalikan 'Decimal' sebagai 'string'
+  price: string
   durationDays: number
-  features: string | null // Ini adalah string JSON
+  features: string | null
 }
 
-// 1. Siapkan state
 const packages = ref<Package[]>([])
 const message = ref('')
 const authStore = useAuthStore()
 const router = useRouter()
 
-// 2. Fungsi untuk mengambil data paket (API Publik)
+// Fungsi untuk mengambil data paket (API Publik)
 const fetchPackages = async () => {
   try {
-    const response = await fetch('http://localhost:3000/packages') // Endpoint publik
+    const response = await fetch('http://localhost:3000/packages')
     if (!response.ok) throw new Error('Gagal memuat paket')
     packages.value = await response.json()
   } catch (error: any) {
@@ -30,27 +29,27 @@ const fetchPackages = async () => {
   }
 }
 
-// 3. Panggil 'fetchPackages' saat komponen dimuat
+// Panggil 'fetchPackages' saat komponen dimuat
 onMounted(fetchPackages)
 
-// 4. Fungsi untuk menangani pembelian (API Member)
+// Fungsi untuk menangani pembelian (API Member)
 const handleBuy = async (packageId: number) => {
   message.value = ''
 
-  // 5. Cek apakah user sudah login (dari store)
+  // Cek apakah user sudah login (dari store)
   if (!authStore.isAuthenticated) {
     message.value = 'Anda harus login untuk membeli paket.'
-    router.push('/login') // Arahkan ke login
+    router.push('/login')
     return
   }
 
   try {
-    // 6. Panggil endpoint 'transactions' yang terproteksi
+    // Panggil endpoint 'transactions' yang terproteksi
     const response = await fetch('http://localhost:3000/transactions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...authStore.authHeader, // <-- Gunakan token dari Pinia!
+        ...authStore.authHeader, // Gunakan token dari Pinia
       },
       body: JSON.stringify({ packageId }),
     })
@@ -61,13 +60,36 @@ const handleBuy = async (packageId: number) => {
       throw new Error(data.message || 'Pembuatan transaksi gagal')
     }
 
-    // 7. INI PENTING: Kita dapat 'paymentToken' dari backend
-    console.log('Payment Token:', data.paymentToken)
-    message.value = 'Transaksi dibuat... Membuka jendela pembayaran.'
+    // --- INI PERBAIKANNYA ---
+    // Hapus console.log, ganti dengan 'window.snap.pay'
 
-    // 8. TODO: Panggil Midtrans Snap.js dengan token ini
-    // window.snap.pay(data.paymentToken)
-
+    // 'window.snap' sekarang dikenali berkat file 'vite-env.d.ts'
+    // Kita panggil pop-up pembayaran Midtrans dengan token yang didapat
+    ;(window as any).snap.pay(data.paymentToken, {
+      onSuccess: function (result: any) {
+        /* User berhasil bayar */
+        console.log('Payment Success:', result)
+        message.value =
+          'Pembayaran sukses! Status membership akan segera update.'
+        // Arahkan ke halaman profile
+        router.push('/profile')
+      },
+      onPending: function (result: any) {
+        /* User belum bayar */
+        console.log('Payment Pending:', result)
+        message.value = 'Menunggu pembayaran Anda...'
+      },
+      onError: function (result: any) {
+        /* Error */
+        console.error('Payment Error:', result)
+        message.value = 'Pembayaran gagal.'
+      },
+      onClose: function () {
+        /* Pop-up ditutup user sebelum bayar */
+        message.value = 'Anda menutup jendela pembayaran sebelum selesai.'
+      },
+    })
+    // --- BATAS PERBAIKAN ---
   } catch (error: any) {
     message.value = error.message
     if (error.message.includes('Unauthorized')) {
@@ -90,7 +112,7 @@ const handleBuy = async (packageId: number) => {
       <div v-for="pkg in packages" :key="pkg.id" class="package-card">
         <h3>{{ pkg.name }}</h3>
         <p class="price">
-          Rp{{ Number(pkg.price).toLocaleString('id-ID') }}
+          Rp {{ Number(pkg.price).toLocaleString('id-ID') }}
         </p>
         <p class="duration">{{ pkg.durationDays }} Hari</p>
         <p class="description">{{ pkg.description }}</p>
@@ -102,6 +124,7 @@ const handleBuy = async (packageId: number) => {
 </template>
 
 <style scoped>
+/* Style tidak berubah */
 .packages-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -119,7 +142,7 @@ const handleBuy = async (packageId: number) => {
 .price {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #42b883; /* Warna Vue */
+  color: #42b883;
 }
 .duration {
   font-style: italic;
