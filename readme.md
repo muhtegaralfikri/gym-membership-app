@@ -1,144 +1,77 @@
-Itu adalah ide yang sangat cerdas. Kita pastikan semua kemajuan kita didokumentasikan dengan baik di `README.md` sebelum pindah ke *partner* berikutnya. Proyek ini sudah sangat solid, dan `README.md` ini akan membuatnya bersinar di GitHub.
-
-Berikut adalah draf lengkap `README.md` profesional yang mencakup semua yang sudah kita bangun (Auth, Users, Packages, Transactions, dan Database Structure):
-
------
-
-# 🔗 Gym Membership Full-stack Application
-
-**Repository ini adalah proyek portofolio *full-stack* yang komprehensif untuk mengelola sistem keanggotaan gym, dari registrasi *member* hingga manajemen paket, dan simulasi transaksi pembayaran.**
-
-Aplikasi ini menggunakan arsitektur monorepo untuk mengelola *backend* dan *frontend* secara berdampingan, memastikan konsistensi tipe data di seluruh *stack* melalui TypeScript.
-
-## 🚀 Fitur Utama
-
-### 👤 Member & Publik
-
-  * **Registrasi & Login:** Sistem autentikasi berbasis JWT.
-  * **Akses Paket:** Melihat daftar paket membership yang aktif (publik).
-  * **Manajemen Profil:** Mendapatkan dan memperbarui data profil (nama, telepon).
-  * **Simulasi Pembelian:** Membuat transaksi baru dan menerima URL pembayaran simulasi (`/transactions`).
-
-### ⚙️ Arsitektur Inti (Backend)
-
-  * **Logika Membership Robust:** Menggunakan tabel `UserMembership` untuk mengelola histori dan *stacking* paket, bukan hanya tanggal kedaluwarsa tunggal.
-  * **Keamanan:** Penggunaan `JwtAuthGuard` untuk *Role-Based Access Control* (RBAC) pada *endpoint* yang terlindungi.
-  * **Validasi Ketat:** Penggunaan *Global Validation Pipe* dengan `class-validator` pada semua DTO.
-  * **Dokumentasi Otomatis:** Integrasi penuh **Swagger** untuk eksplorasi API yang interaktif.
-
-## 💻 Tech Stack
-
-| Bagian | Teknologi | Catatan |
-| :--- | :--- | :--- |
-| **Backend** | **NestJS** | Kerangka kerja Node.js yang *scalable*, berbasis TypeScript. |
-| **Database** | **PostgreSQL** | Digunakan via layanan *cloud* **Neon** (untuk fleksibilitas *serverless*). |
-| **ORM** | **Prisma** | ORM modern yang *type-safe* untuk interaksi database. |
-| **Frontend** | **Vue.js 3** | Kerangka kerja reaktif, digunakan bersama **Vite** dan **Pinia** (State Management). |
-| **Testing** | **Jest** | Digunakan untuk Unit Testing (akan diimplementasikan). |
-
------
-
-## 🏛️ Database Schema
-
-Sistem ini didasarkan pada 5 tabel utama. Logika membership berpusat pada tabel `UserMembership` untuk memastikan *stacking* (paket baru mulai setelah paket lama berakhir) yang benar.
-
-### Struktur Kunci
-
-| Tabel | Kolom Kritis | Catatan |
-| :--- | :--- | :--- |
-| `User` | `email` (@unique), `password` (hashed), `roleId` (FK), `isActive` | Menyimpan data otentikasi. |
-| `Role` | `id` (1=admin, 2=member), `name` | Digunakan untuk Role-Based Access Control. |
-| `Package` | `name` (@unique), `price`, `durationDays`, `isActive` | Daftar paket yang dijual. |
-| `Transaction` | `orderId` (@unique), `amount`, `status` (`pending` / `success`), `paymentUrl` | Mencatat upaya pembelian. |
-| `UserMembership` | `userId` (FK), `packageId` (FK), `transactionId` (FK, @unique) | **CORE LOGIC:** Mencatat `startDate` dan `endDate` yang sebenarnya. |
-
------
-
-## 🛠️ Panduan Instalasi Lokal (Backend)
-
-Karena kita tidak menggunakan Docker, ikuti langkah-langkah *setup* ini untuk menjalankan server NestJS.
-
-### Prasyarat
-
-  * Node.js (v18+)
-  * Akun **Neon** (PostgreSQL)
-
-### 1\. Kloning Repositori & Navigasi
-
-```bash
-git clone https://github.com/muhtegaralfikri/gym-membership-app.git
-cd gym-membership-app/backend
-npm install
-```
-
-### 2\. Konfigurasi Environment Variables
-
-Buat file `.env` di *root* folder `/backend` (sejajar dengan `package.json`).
-
-```env
-# URL koneksi dari database Neon
-DATABASE_URL="postgresql://user:password@host/dbname"
-
-# Secret Key untuk JWT
-JWT_SECRET="GANTI_DENGAN_STRING_ACAK_YANG_KUAT" 
-```
-
-### 3\. Migrasi & Seeding Database
-
-Jalankan *script* migrasi untuk membuat semua tabel di database Neon Anda, diikuti dengan *script seeding* untuk memasukkan data awal (`Role` dan `Package`).
-
-```bash
-# Membuat tabel di database Neon
-npx prisma migrate dev
-
-# Mengisi tabel Role (Admin/Member) dan Paket Dummy
-npx prisma db seed 
-```
-
-### 4\. Menjalankan Server
-
-Jalankan server *development* NestJS.
-
-```bash
-npm run start:dev
-```
-
-Server akan berjalan di `http://localhost:3000`.
-
------
-
-## 🔬 Endpoint API (via Swagger)
-
-Setelah server berjalan, dokumentasi API interaktif dapat diakses di:
-
-👉 **`http://localhost:3000/api`**
-
-| Tag | Method | Endpoint | Deskripsi | Akses | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Auth** | `POST` | `/auth/register` | Mendaftar user baru (Role Member). | Public | ✅ Selesai |
-| **Auth** | `POST` | `/auth/login` | Login dan mendapatkan `access_token` (JWT). | Public | ✅ Selesai |
-| **Users** | `GET` | `/users/profile` | Mendapatkan data diri user yang sedang login. | Member, Admin | ✅ Selesai |
-| **Users** | `PUT` | `/users/profile` | Memperbarui nama dan nomor telepon user. | Member, Admin | ✅ Selesai |
-| **Packages** | `GET` | `/packages` | Melihat semua paket yang aktif. | Public | ✅ Selesai |
-| **Transactions** | `POST` | `/transactions` | Membuat transaksi baru, mengembalikan URL pembayaran simulasi. | Member | ✅ Selesai |
-| **---** | | | | | |
-| **Next Step** | `POST` | `/payment-notification` | **Webhook** dari *payment gateway* (Logic kunci). | Public | 🚧 Progress |
-
------
-
 ## ⏭️ Status & Rencana Selanjutnya
 
-Saat ini, *backend* memiliki fondasi yang kokoh. Modul berikutnya yang harus dikerjakan adalah:
+### Status Saat Ini (Backend)
 
-1.  **Memberships Module:** Membangun `MembershipsService` untuk logika `startDate` dan `endDate` yang kompleks (*stacking*).
-2.  **Payment Gateway Webhook:** Membuat `PaymentController` (`POST /payment-notification`) yang akan memicu `MembershipsService` setelah pembayaran sukses.
-3.  **Admin CRUD:** Mengimplementasikan *endpoint* Admin untuk manajemen user dan paket.
-4.  **Frontend:** Mulai pengembangan Vue.js untuk mengonsumsi API yang sudah dibuat.
+Fondasi *backend* telah selesai dan **alur E2E (End-to-End) utama telah teruji melalui Swagger**:
+1.  **Authentication**: `POST /auth/register` dan `POST /auth/login` (JWT) berfungsi.
+2.  **Role-Based Access (RBAC)**: `RolesGuard` dan `Role` Enum telah dibuat.
+3.  **CRUD Admin (Dasar)**: Admin dapat melihat (`GET /users`), memperbarui (`PUT /users/:id`), dan mengelola paket (`GET /packages/all`, `POST /packages`, `PUT /packages/:id`).
+4.  **Alur Pembayaran E2E**:
+    * Member dapat membuat transaksi (`POST /transactions`) dan mendapatkan `paymentToken` Midtrans.
+    * *Webhook* (`POST /payments/notification`) berhasil menerima notifikasi "settlement".
+    * `MembershipsService` berhasil dipanggil, memvalidasi, dan meng-update status transaksi ke `success`.
+    * Logika **Stacking Membership** (Active & Upcoming) terbukti **berhasil** saat *webhook* dijalankan kedua kalinya.
+    * Member dapat memverifikasi status keanggotaan mereka (`GET /memberships/my-status`).
 
-**Anda sekarang bisa melanjutkan pengembangan *backend* dari langkah ini.**
+### Rencana Kerja (Sisa Gaps)
 
------
+Tugas berikutnya adalah **Refactor** API agar lebih profesional (menggunakan *prefix* `/admin` sesuai rencana) dan melengkapi *endpoint-endpoint* yang hilang dari daftar.
 
-**Next Step Anda:**
+---
 
-Lanjutkan dengan **Membangun `MembershipsModule`**. Perlu dibuat `MembershipsService` untuk menangani *logic* kalkulasi `startDate` dan `endDate` dari `UserMembership`.
+### Langkah 1: Refactor URL (Prioritas Utama)
+
+**Tujuan:** Memindahkan semua *endpoint* Admin agar konsisten menggunakan *prefix* `/admin/` sesuai rencana di CSV. Ini adalah *best practice* untuk kerapian dan keamanan API.
+
+1.  **File: `src/users/users.controller.ts`**
+    * Ubah `@Controller('users')` menjadi `@Controller()`.
+    * Ubah *endpoint* `GET /users` (Admin) menjadi `@Get('admin/users')`.
+    * Ubah *endpoint* `PUT /users/:id` (Admin) menjadi `@Put('admin/users/:id')`.
+    * Biarkan `GET /users/profile` dan `PUT /users/profile` tetap dengan *prefix* `users/`.
+
+2.  **File: `src/packages/packages.controller.ts`**
+    * Ubah `@Controller('packages')` menjadi `@Controller()`.
+    * Biarkan *endpoint* publik `GET /packages` tetap.
+    * Ubah *endpoint* `GET /packages/all` (Admin) menjadi `@Get('admin/packages')`.
+    * Ubah *endpoint* `POST /packages` (Admin) menjadi `@Post('admin/packages')`.
+    * Ubah *endpoint* `PUT /packages/:id` (Admin) menjadi `@Put('admin/packages/:id')`.
+
+3.  **File: `src/memberships/memberships.controller.ts`**
+    * Ubah `@Controller('memberships')` menjadi `@Controller()`.
+    * Biarkan *endpoint* `GET /memberships/my-status` tetap.
+    * Ubah *endpoint* `GET /memberships/user/:id` (Admin) menjadi `@Get('admin/memberships/user/:id')`.
+
+---
+
+### Langkah 2: Melengkapi Admin CRUD Users
+
+**Tujuan:** Melengkapi *endpoint* Admin yang hilang di `UsersController` sesuai rencana.
+
+1.  **File: `src/users/dto/create-user-admin.dto.ts` (Baru)**
+    * Buat DTO baru yang mengizinkan Admin mengatur `email`, `password`, `name`, `roleId`.
+2.  **File: `src/users/users.service.ts`**
+    * Buat *method* baru `findOneById(id: number)` untuk mengambil detail satu user (dan `excludePassword`).
+    * Manfaatkan *method* `create` yang sudah ada (yang sudah meng-hash password).
+3.  **File: `src/users/users.controller.ts`**
+    * Buat *endpoint* `POST /admin/users` (dijaga `RolesGuard(Role.Admin)`).
+    * Buat *endpoint* `GET /admin/users/:id` (dijaga `RolesGuard(Role.Admin)`).
+
+---
+
+### Langkah 3: Melengkapi Riwayat Transaksi
+
+**Tujuan:** Memberi akses *read-only* riwayat transaksi untuk Member dan Admin.
+
+1.  **File: `src/transactions/transactions.service.ts`**
+    * Buat *method* baru `findUserTransactions(userId: number)` (untuk Member).
+    * Buat *method* baru `findAllTransactions()` (untuk Admin).
+2.  **File: `src/transactions/transactions.controller.ts`**
+    * Buat *endpoint* `GET /transactions` (dijaga `JwtAuthGuard`, mengambil `userId` dari token).
+    * Buat *endpoint* `GET /admin/transactions` (dijaga `RolesGuard(Role.Admin)`).
+
+---
+
+### Langkah 4: Mulai Pengembangan Frontend
+
+Setelah semua *endpoint* backend di atas selesai dan rapi, kita akan beralih ke folder `/frontend` dan mulai membangun aplikasi Vue.js untuk mengonsumsi API ini.
+
