@@ -7,5 +7,6 @@ import { PrismaModule } from 'src/prisma/prisma.module';
   imports: [PrismaModule], // <-- 2. Tambahkan di sini
   providers: [PackagesService],
   controllers: [PackagesController],
+  exports: [PackagesService],
 })
 export class PackagesModule {}

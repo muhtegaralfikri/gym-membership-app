@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
 import { PackagesModule } from './packages/packages.module';
+import { TransactionsModule } from './transactions/transactions.module';
 
 @Module({
   imports: [
@@ -13,7 +14,8 @@ import { PackagesModule } from './packages/packages.module';
     PrismaModule,
     AuthModule, // <-- 3. Kita juga akan butuh ini (tambahkan jika belum ada)
     UsersModule,
-    PackagesModule, // <-- 4. Dan ini (tambahkan jika belum ada)
+    PackagesModule,
+    TransactionsModule, // <-- 4. Dan ini (tambahkan jika belum ada)
   ],
   controllers: [AppController],
   providers: [AppService],

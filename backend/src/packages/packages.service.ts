@@ -22,4 +22,13 @@ export class PackagesService {
       },
     });
   }
+  /**
+   * Method untuk mengambil satu paket berdasarkan ID
+   * (Dibutuhkan oleh TransactionsService)
+   */
+  async findById(id: number) {
+    return this.prisma.package.findUnique({
+      where: { id },
+    });
+  }
 }
