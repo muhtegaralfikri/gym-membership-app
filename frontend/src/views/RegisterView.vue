@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-// 1. Import RouterLink
 import { RouterLink, useRouter } from 'vue-router'
+import api from '@/services/api' // <-- 1. Import 'api' kita
 
 const name = ref('')
 const email = ref('')
@@ -9,41 +9,37 @@ const password = ref('')
 const phone = ref('')
 const message = ref('')
 
-// 2. Inisialisasi router
 const router = useRouter()
 
 const handleRegister = async () => {
-  message.value = '' 
+  message.value = ''
   try {
-    const response = await fetch('http://localhost:3000/auth/register', {
-      // ... (fetch config tidak berubah)
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: name.value,
-        email: email.value,
-        password: password.value,
-        phone: phone.value || undefined,
-      }),
+    // --- 2. GANTI FETCH DENGAN API.POST ---
+    // Kita tidak perlu URL lengkap atau headers, 'api.ts' sudah mengaturnya.
+    const response = await api.post('/auth/register', {
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      phone: phone.value || undefined,
     })
-
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Registration failed')
-    }
+    
+    // Data sukses ada di 'response.data'
+    const data = response.data 
 
     message.value = `Registrasi sukses! Selamat datang, ${data.name}. Mengalihkan ke login...`
-    
-    // 3. Redirect ke halaman login setelah sukses
+
     setTimeout(() => {
       router.push('/login')
     }, 1500)
-    
+
   } catch (error: any) {
-    message.value = error.message
+    // --- 3. TANGANI ERROR DARI AXIOS ---
+    // Error dari backend (seperti 409 Conflict) akan ada di 'error.response.data'
+    if (error.response && error.response.data) {
+      message.value = error.response.data.message || 'Registrasi gagal.'
+    } else {
+      message.value = 'Terjadi kesalahan. Coba lagi nanti.'
+    }
   }
 }
 </script>
@@ -110,6 +106,7 @@ button {
   margin-top: 1rem;
   color: green;
 }
+/* Style untuk error (bisa kita ubah nanti) */
 .message:not(:empty):not(:containing('sukses')) {
   color: red;
 }

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useAuthStore } from '@/stores/auth' // Kita butuh store untuk token
+import { useAuthStore } from '@/stores/auth'
 import { useRouter } from 'vue-router'
+import api from '@/services/api' // <-- 1. Import 'api' kita
 
 // Tipe data untuk paket
 interface Package {
@@ -21,11 +22,13 @@ const router = useRouter()
 // Fungsi untuk mengambil data paket (API Publik)
 const fetchPackages = async () => {
   try {
-    const response = await fetch('http://localhost:3000/packages')
-    if (!response.ok) throw new Error('Gagal memuat paket')
-    packages.value = await response.json()
+    // --- 2. GANTI FETCH DENGAN API.GET ---
+    // Endpoint ini publik, jadi 'api.ts' tidak akan melampirkan token
+    const response = await api.get('/packages')
+    packages.value = response.data
   } catch (error: any) {
-    message.value = error.message
+    message.value =
+      error.response?.data?.message || 'Gagal memuat paket.'
   }
 }
 
@@ -36,7 +39,6 @@ onMounted(fetchPackages)
 const handleBuy = async (packageId: number) => {
   message.value = ''
 
-  // Cek apakah user sudah login (dari store)
   if (!authStore.isAuthenticated) {
     message.value = 'Anda harus login untuk membeli paket.'
     router.push('/login')
@@ -44,57 +46,45 @@ const handleBuy = async (packageId: number) => {
   }
 
   try {
-    // Panggil endpoint 'transactions' yang terproteksi
-    const response = await fetch('http://localhost:3000/transactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authStore.authHeader, // Gunakan token dari Pinia
-      },
-      body: JSON.stringify({ packageId }),
-    })
+    // --- 3. GANTI FETCH DENGAN API.POST ---
+    // 'api.ts' akan OTOMATIS melampirkan token JWT kita
+    const response = await api.post('/transactions', { packageId })
+    const data = response.data // data.paymentToken
 
-    const data = await response.json()
-
-    if (!response.ok) {
-      throw new Error(data.message || 'Pembuatan transaksi gagal')
-    }
-
-    // --- INI PERBAIKANNYA ---
-    // Hapus console.log, ganti dengan 'window.snap.pay'
-
-    // 'window.snap' sekarang dikenali berkat file 'vite-env.d.ts'
-    // Kita panggil pop-up pembayaran Midtrans dengan token yang didapat
+    // Panggil Midtrans Snap
     ;(window as any).snap.pay(data.paymentToken, {
       onSuccess: function (result: any) {
-        /* User berhasil bayar */
         console.log('Payment Success:', result)
         message.value =
           'Pembayaran sukses! Status membership akan segera update.'
-        // Arahkan ke halaman profile
         router.push('/profile')
       },
       onPending: function (result: any) {
-        /* User belum bayar */
         console.log('Payment Pending:', result)
         message.value = 'Menunggu pembayaran Anda...'
       },
       onError: function (result: any) {
-        /* Error */
         console.error('Payment Error:', result)
         message.value = 'Pembayaran gagal.'
       },
       onClose: function () {
-        /* Pop-up ditutup user sebelum bayar */
         message.value = 'Anda menutup jendela pembayaran sebelum selesai.'
       },
     })
     // --- BATAS PERBAIKAN ---
   } catch (error: any) {
-    message.value = error.message
-    if (error.message.includes('Unauthorized')) {
-      authStore.logout()
-      router.push('/login')
+    // --- 4. ERROR HANDLING AXIOS ---
+    if (error.response) {
+      if (error.response.status === 401) {
+        message.value = 'Sesi Anda telah berakhir. Silakan login kembali.'
+        authStore.logout()
+        router.push('/login')
+      } else {
+        message.value =
+          error.response.data.message || 'Pembuatan transaksi gagal.'
+      }
+    } else {
+      message.value = 'Terjadi kesalahan jaringan.'
     }
   }
 }

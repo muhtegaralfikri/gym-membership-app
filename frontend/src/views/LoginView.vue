@@ -1,51 +1,46 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-// 1. Import hook dari router dan store
 import { useRouter, RouterLink } from 'vue-router'
-import { useAuthStore } from '../stores/auth'
+import { useAuthStore } from '@/stores/auth'
+import api from '@/services/api' // <-- 1. Import 'api' kita
 
 const email = ref('')
 const password = ref('')
 const message = ref('')
 
-// 2. Inisialisasi store dan router
 const authStore = useAuthStore()
 const router = useRouter()
 
 const handleLogin = async () => {
   message.value = ''
   try {
-    const response = await fetch('http://localhost:3000/auth/login', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.value,
-        password: password.value,
-      }),
+    // --- 2. GANTI FETCH DENGAN API.POST ---
+    const response = await api.post('/auth/login', {
+      email: email.value,
+      password: password.value,
     })
 
-    const data = await response.json()
+    const data = response.data // data.access_token
 
-    if (!response.ok) {
-      throw new Error(data.message || 'Login failed')
-    }
-
-    // --- INI PERUBAHAN UTAMANYA ---
     // 3. Simpan token ke Pinia Store
     authStore.setToken(data.access_token)
 
-    message.value = 'Login sukses! Mengalihkan ke halaman utama...'
+    message.value = 'Login sukses! Mengalihkan...'
 
-    // 4. Redirect user ke Halaman Utama ('/') setelah 1 detik
+    // 4. Redirect user ke Halaman Profil
+    // Kita gunakan 'replace' agar user tidak bisa klik "back" ke halaman login
     setTimeout(() => {
-      router.push('/')
+      router.replace('/profile')
     }, 1000)
-    // ---------------------------------
 
   } catch (error: any) {
-    message.value = error.message
+    // --- 5. TANGANI ERROR DARI AXIOS ---
+    if (error.response && error.response.data) {
+      // (Misal: 401 Unauthorized, 404 Not Found)
+      message.value = error.response.data.message || 'Login gagal.'
+    } else {
+      message.value = 'Terjadi kesalahan jaringan. Coba lagi nanti.'
+    }
   }
 }
 </script>
