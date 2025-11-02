@@ -119,4 +119,42 @@ export class TransactionsService {
       throw new InternalServerErrorException('Could not create transaction');
     }
   }
+  /**
+   * (Member) Mengambil riwayat transaksi milik sendiri
+   */
+  async findUserTransactions(userId: number) {
+    return this.prisma.transaction.findMany({
+      where: { userId: userId },
+      include: {
+        package: true, // Sertakan detail paket yang dibeli
+      },
+      orderBy: {
+        createdAt: 'desc', // Tampilkan yang terbaru di atas
+      },
+    });
+  }
+
+  // --- METHOD BARU UNTUK ADMIN ---
+
+  /**
+   * (Admin) Mengambil semua riwayat transaksi di sistem
+   */
+  async findAllTransactions() {
+    return this.prisma.transaction.findMany({
+      include: {
+        package: true, // Sertakan detail paket
+        user: {
+          // Sertakan detail user (yang aman, tanpa password)
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
 }

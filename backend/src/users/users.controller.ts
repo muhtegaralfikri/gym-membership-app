@@ -7,8 +7,9 @@ import {
   UseGuards,
   Put,
   Body,
-  Param, // <-- 1. Import Param
-  ParseIntPipe, // <-- 2. Import ParseIntPipe
+  Param,
+  ParseIntPipe,
+  Post,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { UsersService } from './users.service';
@@ -20,20 +21,22 @@ import {
   ApiBearerAuth,
   ApiUnauthorizedResponse,
   ApiBadRequestResponse,
-  ApiForbiddenResponse, // <-- 3. Import ApiForbiddenResponse
-  ApiNotFoundResponse, // <-- 4. Import ApiNotFoundResponse
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiCreatedResponse, // <-- 2. Import ApiCreatedResponse
+  ApiConflictResponse,
 } from '@nestjs/swagger';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
-// --- 5. Import dependensi untuk Admin ---
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { Role } from 'src/auth/enums/role.enum';
-import { UpdateUserAdminDto } from './dto/update-user-admin.dto'; // <-- DTO baru
+import { UpdateUserAdminDto } from './dto/update-user-admin.dto';
+import { CreateUserAdminDto } from './dto/create-user-admin.dto'; // <-- 4. Import DTO baru
 
 @ApiTags('Users')
-@Controller('users')
+@Controller() // <-- 1. Ubah @Controller('users') menjadi @Controller()
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -41,8 +44,8 @@ export class UsersController {
    * (Member/Admin) Endpoint untuk mendapatkan profil user yang sedang login
    * GET /users/profile
    */
-  @Get('profile')
-  @UseGuards(JwtAuthGuard) // <-- Hanya cek token (Authn)
+  @Get('users/profile') // <-- 2. Tambahkan prefix 'users/'
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile (Member/Admin)' })
   @ApiOkResponse({
@@ -58,8 +61,8 @@ export class UsersController {
    * (Member/Admin) Endpoint untuk memperbarui profil user yang sedang login
    * PUT /users/profile
    */
-  @Put('profile')
-  @UseGuards(JwtAuthGuard) // <-- Hanya cek token (Authn)
+  @Put('users/profile') // <-- 3. Tambahkan prefix 'users/'
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update current user profile (Member/Admin)' })
   @ApiOkResponse({
@@ -70,25 +73,25 @@ export class UsersController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
   updateProfile(
     @Req() req: Request & { user: UserResponseDto },
-    @Body() updateUserDto: UpdateUserDto, // <-- DTO standar
+    @Body() updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
     return this.usersService.update(req.user.id, updateUserDto);
   }
 
-  // --- ENDPOINT ADMIN BARU ---
+  // --- ENDPOINT ADMIN (REFACTORED) ---
 
   /**
    * (Admin) Mengambil semua user
-   * GET /users
+   * GET /admin/users
    */
-  @Get() // <-- GET di root /users
-  @UseGuards(JwtAuthGuard, RolesGuard) // <-- 6. Terapkan Authn dan Authz
-  @Roles(Role.Admin) // <-- 7. Hanya Admin
+  @Get('admin/users') // <-- 4. Ubah dari @Get() menjadi @Get('admin/users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all users (Admin Only)' })
   @ApiOkResponse({
     description: 'List of all users retrieved.',
-    type: [UserResponseDto], // <-- Mengembalikan array UserResponseDto
+    type: [UserResponseDto],
   })
   @ApiForbiddenResponse({ description: 'Forbidden.' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
@@ -96,13 +99,47 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Post('admin/users') // <-- 5. ENDPOINT BARU
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new user manually (Admin Only)' })
+  @ApiCreatedResponse({
+    description: 'User created successfully.',
+    type: UserResponseDto,
+  })
+  @ApiBadRequestResponse({ description: 'Invalid input data.' })
+  @ApiConflictResponse({ description: 'Email already exists.' })
+  @ApiForbiddenResponse({ description: 'Forbidden.' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
+  createUserByAdmin(@Body() createUserAdminDto: CreateUserAdminDto) {
+    // Kita perlu menambahkan try-catch di service untuk P2002 (Conflict)
+    // Tapi untuk controller, kita panggil servicenya saja
+    return this.usersService.createByAdmin(createUserAdminDto);
+  }
+
+  @Get('admin/users/:id') // <-- 6. ENDPOINT BARU
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get details for a specific user (Admin Only)' })
+  @ApiOkResponse({
+    description: 'User details retrieved.',
+    type: UserResponseDto,
+  })
+  @ApiForbiddenResponse({ description: 'Forbidden.' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
+  @ApiNotFoundResponse({ description: 'User not found.' })
+  findUserById(@Param('id', ParseIntPipe) id: number) {
+    return this.usersService.findOneById(id);
+  }
   /**
    * (Admin) Memperbarui data user spesifik
-   * PUT /users/:id
+   * PUT /admin/users/:id
    */
-  @Put(':id') // <-- PUT di /users/:id
-  @UseGuards(JwtAuthGuard, RolesGuard) // <-- 6. Terapkan Authn dan Authz
-  @Roles(Role.Admin) // <-- 7. Hanya Admin
+  @Put('admin/users/:id') // <-- 5. Ubah dari @Put(':id') menjadi @Put('admin/users/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a specific user (Admin Only)' })
   @ApiOkResponse({
@@ -112,10 +149,10 @@ export class UsersController {
   @ApiBadRequestResponse({ description: 'Invalid input data.' })
   @ApiForbiddenResponse({ description: 'Forbidden.' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
-  @ApiNotFoundResponse({ description: 'User not found.' }) // <-- Tambahan
+  @ApiNotFoundResponse({ description: 'User not found.' })
   updateUserByAdmin(
-    @Param('id', ParseIntPipe) id: number, // <-- 8. Ambil ID dari URL
-    @Body() updateUserAdminDto: UpdateUserAdminDto, // <-- 9. Pakai DTO Admin
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateUserAdminDto: UpdateUserAdminDto,
   ): Promise<UserResponseDto> {
     return this.usersService.updateByAdmin(id, updateUserAdminDto);
   }

@@ -1,9 +1,16 @@
 // src/transactions/transactions.controller.ts
 
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  Get, // <-- 1. Import Get
+} from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard'; // 1. Import Guard
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import {
   ApiTags,
   ApiOperation,
@@ -13,46 +20,85 @@ import {
   ApiBadRequestResponse,
   ApiNotFoundResponse,
   ApiProperty,
+  ApiOkResponse, // <-- 2. Import ApiOkResponse
+  ApiForbiddenResponse, // <-- 3. Import ApiForbiddenResponse
 } from '@nestjs/swagger';
 import { Request } from 'express';
 import { UserResponseDto } from 'src/users/dto/user-response.dto';
 
-// 2. DTO untuk response-nya
+// --- 4. Import dependensi untuk Admin ---
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { Role } from 'src/auth/enums/role.enum';
+
+// DTO untuk response 'create'
 class TransactionResponse {
   @ApiProperty()
   message: string;
   @ApiProperty()
   orderId: string;
   @ApiProperty({ example: '7cd2f5a1-acd5-4815-98dd-6d1d2b2d3a0a' })
-  paymentToken: string; // <-- Ganti 'paymentUrl' menjadi 'paymentToken'
+  paymentToken: string; // <-- Ini sudah kita perbaiki
 }
 
-@ApiTags('Transactions') // 3. Grup-kan di Swagger
-@Controller('transactions')
+@ApiTags('Transactions')
+@Controller() // <-- 5. Ubah @Controller('transactions') menjadi @Controller()
 export class TransactionsController {
   constructor(private readonly transactionsService: TransactionsService) {}
 
   /**
-   * Endpoint untuk membuat transaksi baru (MEMBER ONLY)
+   * (Member) Membuat transaksi baru (MEMBER ONLY)
    * POST /transactions
    */
-  @Post()
-  @UseGuards(JwtAuthGuard) // 4. KUNCI ENDPOINT INI!
-  @ApiBearerAuth() // 5. Tandai butuh token di Swagger
+  @Post('transactions') // <-- 6. Tambahkan prefix 'transactions'
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new transaction (Member Only)' })
   @ApiCreatedResponse({
     description: 'Transaction created, returns payment token.',
-    type: TransactionResponse, // 6. Definisikan response-nya
+    type: TransactionResponse,
   })
   @ApiBadRequestResponse({ description: 'Invalid input data.' })
   @ApiNotFoundResponse({ description: 'Package not found.' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
   create(
-    @Body() createTransactionDto: CreateTransactionDto, // 7. Ambil packageId dari body
-    @Req() req: Request & { user: UserResponseDto }, // 8. Ambil user dari token
+    @Body() createTransactionDto: CreateTransactionDto,
+    @Req() req: Request & { user: UserResponseDto },
   ) {
-    const userId = req.user.id; // 9. Dapatkan userId
-    // 10. Panggil service-nya
+    const userId = req.user.id;
     return this.transactionsService.create(createTransactionDto, userId);
+  }
+
+  // --- ENDPOINT BARU ---
+
+  /**
+   * (Member) Mengambil riwayat transaksi milik sendiri
+   * GET /transactions
+   */
+  @Get('transactions') // <-- 7. ENDPOINT BARU (GET)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get my transaction history (Member Only)' })
+  @ApiOkResponse({ description: 'Transaction history retrieved.' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
+  findUserTransactions(@Req() req: Request & { user: UserResponseDto }) {
+    const userId = req.user.id;
+    return this.transactionsService.findUserTransactions(userId);
+  }
+
+  /**
+   * (Admin) Mengambil semua riwayat transaksi
+   * GET /admin/transactions
+   */
+  @Get('admin/transactions') // <-- 8. ENDPOINT ADMIN BARU
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all transaction history (Admin Only)' })
+  @ApiOkResponse({ description: 'All transactions retrieved.' })
+  @ApiForbiddenResponse({ description: 'Forbidden.' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
+  findAllTransactions() {
+    return this.transactionsService.findAllTransactions();
   }
 }
