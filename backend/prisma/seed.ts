@@ -6,29 +6,91 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  // Buat dua role dasar: Admin dan Member
-  // Kita pakai upsert agar script ini bisa dijalankan berkali-kali
-  // tanpa membuat data duplikat.
-
+  // --- Seed Roles ---
   const adminRole = await prisma.role.upsert({
     where: { name: 'admin' },
     update: {},
-    create: {
-      id: 1, // Kita tentukan ID-nya
-      name: 'admin',
-    },
+    create: { id: 1, name: 'admin' },
   });
 
   const memberRole = await prisma.role.upsert({
     where: { name: 'member' },
     update: {},
-    create: {
-      id: 2, // Kita tentukan ID-nya
-      name: 'member',
-    },
+    create: { id: 2, name: 'member' },
   });
 
   console.log('Roles created:', { adminRole, memberRole });
+
+  // --- Seed Packages (BARU) ---
+  // Kita buat 3 paket contoh
+
+  const package1 = await prisma.package.upsert({
+    where: { name: 'Bronze Member' }, // Kita pakai 'name' sebagai unique key
+    update: {},
+    create: {
+      name: 'Bronze Member',
+      description: 'Akses gym standar selama 1 bulan.',
+      price: 150000.0,
+      durationDays: 30,
+      features: JSON.stringify(['Akses ke semua alat', 'Gratis handuk']),
+      isActive: true,
+    },
+  });
+
+  const package2 = await prisma.package.upsert({
+    where: { name: 'Silver Member' },
+    update: {},
+    create: {
+      name: 'Silver Member',
+      description: 'Akses gym standar selama 3 bulan.',
+      price: 400000.0, // Harga diskon
+      durationDays: 90,
+      features: JSON.stringify([
+        'Akses ke semua alat',
+        'Gratis handuk',
+        '1x Sesi Personal Trainer',
+      ]),
+      isActive: true,
+    },
+  });
+
+  const package3 = await prisma.package.upsert({
+    where: { name: 'Gold Member (Annual)' },
+    update: {},
+    create: {
+      name: 'Gold Member (Annual)',
+      description: 'Akses gym selama 1 tahun penuh.',
+      price: 1500000.0,
+      durationDays: 365,
+      features: JSON.stringify([
+        'Akses ke semua alat',
+        'Gratis handuk & Loker',
+        '5x Sesi Personal Trainer',
+        'Gratis merchandise',
+      ]),
+      isActive: true,
+    },
+  });
+
+  // Paket yang tidak aktif (contoh)
+  const packageInactive = await prisma.package.upsert({
+    where: { name: 'Promo 7 Hari' },
+    update: { isActive: false }, // Pastikan ini false
+    create: {
+      name: 'Promo 7 Hari',
+      description: 'Promo percobaan 7 hari.',
+      price: 50000.0,
+      durationDays: 7,
+      isActive: false, // Paket ini tidak akan tampil di API
+    },
+  });
+
+  console.log('Packages created:', {
+    package1,
+    package2,
+    package3,
+    packageInactive,
+  });
 }
 
 // Jalankan fungsi main dan tangani error

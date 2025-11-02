@@ -54,7 +54,7 @@ model Role {
 
 model Package {
   id           Int      @id @default(autoincrement())
-  name         String
+  name         String   @unique
   description  String?
   features     Json? // Fitur paket (JSON)
   price        Decimal  @db.Decimal(10, 2)
