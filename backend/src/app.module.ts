@@ -9,6 +9,7 @@ import { PackagesModule } from './packages/packages.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { PaymentsModule } from './payments/payments.module';
+import { MetricsModule } from './metrics/metrics.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PaymentsModule } from './payments/payments.module';
     TransactionsModule,
     MembershipsModule,
     PaymentsModule, // <-- 4. Dan ini (tambahkan jika belum ada)
+    MetricsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
