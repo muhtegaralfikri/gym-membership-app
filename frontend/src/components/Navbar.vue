@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -39,6 +39,15 @@ const toggleMenu = () => {
 const closeMenu = () => {
   menuOpen.value = false
 }
+
+watch(
+  () => authStore.isAuthenticated,
+  () => {
+    if (menuOpen.value) {
+      closeMenu()
+    }
+  },
+)
 </script>
 
 <template>
