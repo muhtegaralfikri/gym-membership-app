@@ -15,7 +15,7 @@ interface Package {
 }
 
 const packages = ref<Package[]>([])
-const loading = ref(false)
+const loading = ref(true)
 const message = ref('')
 const authStore = useAuthStore()
 const router = useRouter()
@@ -164,7 +164,14 @@ const handleBuy = async (packageId: number) => {
     </p>
 
     <div v-if="loading" class="skeleton-grid">
-      <div class="skeleton-card" v-for="n in 3" :key="n"></div>
+      <div class="skeleton-card card skeleton" v-for="n in 3" :key="n">
+        <div class="shimmer line wide"></div>
+        <div class="shimmer line mid"></div>
+        <div class="shimmer line price"></div>
+        <div class="shimmer line"></div>
+        <div class="shimmer line"></div>
+        <div class="shimmer button"></div>
+      </div>
     </div>
 
     <div v-else class="packages-grid">
@@ -325,21 +332,12 @@ const handleBuy = async (packageId: number) => {
 }
 
 .skeleton-card {
-  height: 210px;
   border-radius: 16px;
-  background: linear-gradient(90deg, var(--surface-alt), var(--surface), var(--surface-alt));
-  background-size: 200% 100%;
-  animation: shimmer 1.6s infinite;
   border: 1px solid var(--border);
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }
 
 .packages-grid {

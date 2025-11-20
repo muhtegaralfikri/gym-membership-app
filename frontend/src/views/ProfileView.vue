@@ -35,6 +35,7 @@ const profile = ref<UserProfile | null>(null)
 const memberships = ref<Membership[]>([])
 const transactions = ref<UserTransaction[]>([])
 const message = ref('')
+const loading = ref(true)
 
 const initial = computed(
   () => profile.value?.name?.charAt(0).toUpperCase() ?? '?',
@@ -66,6 +67,7 @@ const formatCurrency = (amount: string | number) => {
 onMounted(async () => {
   if (!authStore.isAuthenticated) {
     message.value = 'Anda harus login untuk melihat halaman ini.'
+    loading.value = false
     return
   }
 
@@ -102,6 +104,8 @@ onMounted(async () => {
     } else {
       message.value = 'Terjadi kesalahan jaringan.'
     }
+  } finally {
+    loading.value = false
   }
 })
 
@@ -115,9 +119,29 @@ onMounted(async () => {
 <template>
   <div class="profile-page">
     <div v-if="message" class="message">{{ message }}</div>
-    <p v-if="!profile && !message">Memuat data...</p>
+    <p v-if="!profile && !message && loading">Memuat data...</p>
 
-    <div v-if="profile" class="hero card">
+    <template v-if="loading">
+      <div class="hero card skeleton">
+        <div class="avatar shimmer"></div>
+        <div class="hero-info">
+          <div class="pill shimmer short"></div>
+          <div class="shimmer line wide"></div>
+          <div class="shimmer line mid"></div>
+        </div>
+      </div>
+      <div class="membership-section card skeleton">
+        <div class="shimmer line wide"></div>
+        <div class="shimmer line mid"></div>
+        <div class="shimmer line mid"></div>
+      </div>
+      <div class="transactions card skeleton">
+        <div class="shimmer line wide"></div>
+        <div class="shimmer line mid"></div>
+      </div>
+    </template>
+
+    <div v-else-if="profile" class="hero card">
       <div class="avatar">{{ initial }}</div>
       <div class="hero-info">
         <div class="pill">Member</div>
@@ -455,6 +479,7 @@ onMounted(async () => {
   color: var(--primary);
   border-color: var(--primary-contrast);
 }
+
 
 @media (max-width: 780px) {
   .hero {

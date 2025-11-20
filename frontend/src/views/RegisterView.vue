@@ -8,11 +8,13 @@ const email = ref('')
 const password = ref('')
 const phone = ref('')
 const message = ref('')
+const loading = ref(false)
 
 const router = useRouter()
 
 const handleRegister = async () => {
   message.value = ''
+  loading.value = true
   try {
     // --- 2. GANTI FETCH DENGAN API.POST ---
     // Kita tidak perlu URL lengkap atau headers, 'api.ts' sudah mengaturnya.
@@ -41,6 +43,9 @@ const handleRegister = async () => {
       message.value = 'Terjadi kesalahan. Coba lagi nanti.'
     }
   }
+  finally {
+    loading.value = false
+  }
 }
 </script>
 
@@ -67,7 +72,10 @@ const handleRegister = async () => {
           <label for="phone">No. Telepon (Opsional)</label>
           <input type="tel" id="phone" v-model="phone" placeholder="0812xxxxxxx" />
         </div>
-        <button type="submit">Daftar</button>
+        <button type="submit" :disabled="loading">
+          <span v-if="loading">Memproses...</span>
+          <span v-else>Daftar</span>
+        </button>
       </form>
 
       <p v-if="message" class="message">{{ message }}</p>
@@ -134,6 +142,10 @@ const handleRegister = async () => {
 button {
   width: 100%;
   padding: 0.9rem;
+}
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 .message {
   margin-top: 1rem;

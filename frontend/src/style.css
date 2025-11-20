@@ -131,3 +131,50 @@ button:active {
   border-radius: 18px;
   box-shadow: var(--shadow);
 }
+
+/* Skeleton utilities */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer {
+  background: linear-gradient(90deg, var(--surface-alt), var(--surface), var(--surface-alt));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+.line {
+  height: 14px;
+  border-radius: 8px;
+  margin: 0.4rem 0;
+}
+.line.wide {
+  width: 80%;
+}
+.line.mid {
+  width: 60%;
+}
+.line.price {
+  width: 50%;
+  height: 18px;
+}
+.pill.shimmer {
+  height: 28px;
+}
+.pill.shimmer.short {
+  width: 100px;
+}
+.shimmer.button,
+.button.shimmer {
+  height: 38px;
+  border-radius: 10px;
+  width: 160px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
