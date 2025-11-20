@@ -106,9 +106,10 @@ export class PaymentsService {
               },
             });
 
-            if (transaction.promoCodeId) {
+            const promoId = (transaction as any).promoCodeId || transaction.promoCode?.id;
+            if (promoId) {
               await txClient.promoCode.update({
-                where: { id: transaction.promoCodeId },
+                where: { id: promoId },
                 data: { usedCount: { increment: 1 } },
               });
             }
