@@ -13,7 +13,7 @@ import {
 } from 'class-validator';
 
 export class CreatePackageDto {
-  @ApiProperty({ example: 'Gold Member (Annual)' })
+  @ApiProperty({ example: 'Gold Member' })
   @IsString()
   @IsNotEmpty()
   name: string;
