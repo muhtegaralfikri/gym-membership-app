@@ -65,15 +65,8 @@ const isDark = computed(() => theme.value === 'dark')
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.25rem;
-  background: linear-gradient(120deg, var(--nav), var(--surface));
-  border: 1px solid var(--nav-border);
-  border-radius: 16px;
-  backdrop-filter: blur(6px);
-  box-shadow: var(--shadow);
-  position: sticky;
-  top: 1rem;
-  z-index: 10;
+  padding: 1rem 0;
+  background: transparent;
   gap: 1rem;
 }
 
