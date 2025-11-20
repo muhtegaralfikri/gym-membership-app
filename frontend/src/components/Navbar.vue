@@ -43,6 +43,7 @@ const isDark = computed(() => theme.value === 'dark')
         <span v-else>🌙 Gelap</span>
       </button>
       <div class="navbar-links">
+        <RouterLink to="/">Menu Utama</RouterLink>
         <RouterLink to="/packages">Lihat Paket</RouterLink>
 
         <template v-if="authStore.isAuthenticated">

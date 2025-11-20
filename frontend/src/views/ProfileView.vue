@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useAuthStore, type UserProfile } from '@/stores/auth'
 import { useRouter } from 'vue-router'
 import api from '@/services/api' // <-- 1. Import 'api' kita
@@ -23,6 +23,15 @@ const profile = ref<UserProfile | null>(null)
 const memberships = ref<Membership[]>([])
 const message = ref('')
 
+const initial = computed(
+  () => profile.value?.name?.charAt(0).toUpperCase() ?? '?',
+)
+
+const activeMembership = computed(() => {
+  const active = memberships.value.find((m) => m.status === 'active')
+  return active || memberships.value[0] || null
+})
+
 // Fungsi untuk memformat tanggal (helper)
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('id-ID', {
@@ -30,6 +39,10 @@ const formatDate = (dateString: string) => {
     month: 'long',
     year: 'numeric',
   })
+}
+
+const formatStatus = (status: Membership['status']) => {
+  return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
 onMounted(async () => {
@@ -54,7 +67,6 @@ onMounted(async () => {
 
     const membershipData: Membership[] = membershipResponse.data
     memberships.value = membershipData
-
   } catch (error: any) {
     // --- 3. ERROR HANDLING AXIOS ---
     if (error.response) {
@@ -85,22 +97,41 @@ onMounted(async () => {
     <div v-if="message" class="message">{{ message }}</div>
     <p v-if="!profile && !message">Memuat data...</p>
 
-    <div v-if="profile" class="profile-section">
-      <h2>Profil Saya</h2>
-      <div class="profile-details">
-        <p><strong>Nama:</strong> {{ profile.name }}</p>
-        <p><strong>Email:</strong> {{ profile.email }}</p>
-        <p><strong>Telepon:</strong> {{ profile.phone || '-' }}</p>
-        <p>
-          <strong>Terdaftar Sejak:</strong>
-          {{ formatDate(profile.createdAt) }}
-        </p>
+    <div v-if="profile" class="hero card">
+      <div class="avatar">{{ initial }}</div>
+      <div class="hero-info">
+        <div class="pill">Member</div>
+        <h2>{{ profile.name }}</h2>
+        <p class="muted">{{ profile.email }}</p>
+        <div class="chips">
+          <span class="chip">Telepon: {{ profile.phone || '-' }}</span>
+          <span class="chip">Sejak {{ formatDate(profile.createdAt) }}</span>
+          <span v-if="activeMembership" class="chip status-chip">
+            Status: {{ formatStatus(activeMembership.status) }}
+          </span>
+        </div>
       </div>
+      <div class="hero-stat">
+        <p class="label">Membership aktif</p>
+        <template v-if="activeMembership">
+          <strong>{{ activeMembership.package.name }}</strong>
+          <small>{{ formatDate(activeMembership.startDate) }} - {{ formatDate(activeMembership.endDate) }}</small>
+        </template>
+        <template v-else>
+          <strong>Belum ada</strong>
+          <small>Tambah paket untuk mulai aktif.</small>
+        </template>
+        <RouterLink class="ghost-btn" to="/packages">Tambah Paket</RouterLink>
+      </div>
+    </div>
+
+    <div v-if="profile" class="membership-section card">
+      <div class="section-head">
+        <h3>Riwayat Membership</h3>
+        <RouterLink class="ghost-btn" to="/packages">Lihat Paket</RouterLink>
       </div>
 
-    <div v-if="profile" class="membership-section">
-      <h2>Status Membership Saya</h2>
-      <div v-if="!memberships.length">
+      <div v-if="!memberships.length" class="empty">
         <p>Anda belum memiliki paket membership aktif.</p>
         <RouterLink class="cta" to="/packages">Beli paket sekarang</RouterLink>
       </div>
@@ -110,10 +141,13 @@ onMounted(async () => {
           :key="mem.id"
           :class="['membership-card', mem.status]"
         >
-          <h4>{{ mem.package.name }}</h4>
-          <p class="status">
+          <div class="card-top">
+            <div>
+              <p class="eyebrow">Paket</p>
+              <h4>{{ mem.package.name }}</h4>
+            </div>
             <span class="pill small">{{ mem.status }}</span>
-          </p>
+          </div>
           <div class="dates">
             <div>
               <small>Mulai</small>
@@ -138,7 +172,76 @@ onMounted(async () => {
   flex-direction: column;
   gap: 1.25rem;
 }
-.profile-section,
+.hero {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  align-items: center;
+}
+.avatar {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  background: var(--primary-contrast);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 1.5rem;
+  border: 1px solid var(--border);
+}
+.hero-info h2 {
+  margin: 0.15rem 0;
+}
+.muted {
+  margin: 0;
+  color: var(--muted);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+.chip {
+  padding: 0.4rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  font-weight: 600;
+  color: var(--text);
+}
+.status-chip {
+  background: var(--primary-contrast);
+  color: var(--primary);
+}
+.hero-stat {
+  justify-self: end;
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.hero-stat .label {
+  color: var(--muted);
+  margin: 0;
+}
+.hero-stat strong {
+  font-size: 1.2rem;
+}
+.ghost-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+  font-weight: 700;
+  gap: 0.35rem;
+}
 .membership-section {
   padding: 1.5rem;
   border: 1px solid var(--border);
@@ -146,16 +249,28 @@ onMounted(async () => {
   background: var(--surface);
   box-shadow: var(--shadow);
 }
-.profile-details p {
-  text-align: left;
-  line-height: 1.6;
-}
 .message {
   padding: 0.75rem 1rem;
   border-radius: 12px;
   background: #ffe7e7;
   color: #c62828;
   border: 1px solid #ffcdd2;
+}
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.section-head h3 {
+  margin: 0;
+}
+.empty {
+  background: var(--surface-alt);
+  border: 1px dashed var(--border);
+  padding: 1rem;
+  border-radius: 12px;
 }
 .membership-list {
   display: flex;
@@ -183,6 +298,12 @@ onMounted(async () => {
 .membership-card.expired {
   border-left: 6px solid #555;
   opacity: 0.7;
+}
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 .membership-card h4 {
   margin: 0 0 0.5rem 0;
@@ -220,5 +341,19 @@ onMounted(async () => {
 .pill.small {
   padding: 0.3rem 0.7rem;
   font-size: 0.85rem;
+}
+
+@media (max-width: 780px) {
+  .hero {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+  .hero-stat {
+    justify-self: start;
+    text-align: left;
+  }
+  .chips {
+    gap: 0.35rem;
+  }
 }
 </style>
