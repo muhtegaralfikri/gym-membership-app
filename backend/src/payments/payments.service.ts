@@ -9,6 +9,8 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MembershipsService } from 'src/memberships/memberships.service';
 import { PaymentNotificationDto } from './dto/payment-notification.dto';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const midtransClient = require('midtrans-client');
 import { MembershipStatus, PaymentStatus, Prisma } from '@prisma/client';
 import { computeMidtransSignature } from './utils/midtrans-signature';
 import { PENDING_TTL_MS } from './constants';
@@ -226,5 +228,47 @@ export class PaymentsService {
       message: 'Transaction refunded/voided and membership updated.',
       transactionId: result.orderId,
     };
+  }
+
+  /**
+   * Sinkron status transaksi langsung ke Midtrans (untuk user terkait).
+   */
+  async syncTransactionStatus(orderId: string, userId: number) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { orderId },
+    });
+
+    if (!transaction || transaction.userId !== userId) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    const clientKey = process.env.MIDTRANS_CLIENT_KEY;
+    const isProduction = process.env.MIDTRANS_IS_PRODUCTION === 'true';
+
+    if (!serverKey || !clientKey) {
+      throw new InternalServerErrorException('Missing Midtrans keys');
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
+    const core = new midtransClient.CoreApi({
+      isProduction,
+      serverKey,
+      clientKey,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const statusResponse = await core.transaction.status(orderId);
+
+    const dto: PaymentNotificationDto = {
+      order_id: statusResponse.order_id,
+      transaction_status: statusResponse.transaction_status,
+      gross_amount: statusResponse.gross_amount,
+      fraud_status: statusResponse.fraud_status,
+      status_code: statusResponse.status_code,
+      signature_key: statusResponse.signature_key,
+    };
+
+    return this.handlePaymentNotification(dto);
   }
 }
