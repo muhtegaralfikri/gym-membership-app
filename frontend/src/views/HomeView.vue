@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import api from '@/services/api'
 
 const auth = useAuthStore()
 
@@ -9,6 +10,69 @@ const primaryCta = computed(() => (auth.isAuthenticated ? '/profile' : '/login')
 const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mulai Login'))
 const registerCta = computed(() => (auth.isAuthenticated ? '/profile' : '/register'))
 const registerLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Daftar'))
+
+const statusTitle = ref('Aktif • 27 hari')
+const statusSubtitle = ref('Pembaruan otomatis setelah pembayaran berhasil.')
+const trustCopy = ref('Sudah dipakai instruktur & member aktif')
+const metrics = ref<{ activeMembers: number; activeInstructors: number; latestInitials: string[] }>({
+  activeMembers: 0,
+  activeInstructors: 0,
+  latestInitials: [],
+})
+
+onMounted(async () => {
+  if (!auth.isAuthenticated) {
+    statusTitle.value = 'Belum login'
+    statusSubtitle.value = 'Masuk untuk melihat status membership kamu.'
+    trustCopy.value = 'Masuk untuk cek progres membership.'
+    return
+  }
+
+  try {
+    const membershipResponse = await api.get('/memberships/my-status')
+    const memberships = membershipResponse.data as Array<{
+      status: 'upcoming' | 'active' | 'expired'
+      startDate: string
+      endDate: string
+      package: { name: string }
+    }>
+
+    const activeOrUpcoming =
+      memberships.find((m) => m.status === 'active') ||
+      memberships.find((m) => m.status === 'upcoming') ||
+      null
+
+    if (activeOrUpcoming) {
+      const end = new Date(activeOrUpcoming.endDate)
+      const now = new Date()
+      const daysLeft = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+      statusTitle.value =
+        activeOrUpcoming.status === 'active'
+          ? `Aktif • ${daysLeft} hari`
+          : `Upcoming • mulai ${new Date(activeOrUpcoming.startDate).toLocaleDateString('id-ID')}`
+      statusSubtitle.value = `Paket ${activeOrUpcoming.package.name} berlaku sampai ${end.toLocaleDateString('id-ID')}.`
+      trustCopy.value = 'Membership kamu diperbarui otomatis setelah bayar.'
+    } else {
+      statusTitle.value = 'Belum ada membership'
+      statusSubtitle.value = 'Beli paket untuk mulai aktifkan membership.'
+      trustCopy.value = 'Mulai dengan paket pertama kamu hari ini.'
+    }
+  } catch (error) {
+    statusTitle.value = 'Tidak dapat memuat status'
+    statusSubtitle.value = 'Coba lagi atau cek profil kamu.'
+    trustCopy.value = 'Cek koneksi dan coba lagi.'
+  }
+
+  try {
+    const metricsResponse = await api.get('/metrics/summary')
+    metrics.value = metricsResponse.data
+    if (metrics.value.activeMembers > 0) {
+      trustCopy.value = `Dipakai oleh ${metrics.value.activeMembers} member aktif${metrics.value.activeInstructors ? ' & instruktur' : ''}.`
+    }
+  } catch (_err) {
+    // fallback to existing copy
+  }
+})
 </script>
 
 <template>
@@ -26,20 +90,20 @@ const registerLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'D
           <RouterLink class="ghost" to="/packages">Lihat Paket</RouterLink>
         </div>
         <div class="trust">
-          <span>Sudah dipakai instruktur & member aktif</span>
-          <div class="avatars">
-            <div class="avatar">A</div>
-            <div class="avatar">B</div>
-            <div class="avatar">C</div>
-            <div class="avatar more">+24</div>
+          <span>{{ trustCopy }}</span>
+          <div class="avatars" v-if="metrics.activeMembers || metrics.latestInitials.length">
+            <div class="avatar" v-for="ini in metrics.latestInitials" :key="ini">{{ ini }}</div>
+            <div v-if="metrics.activeMembers > metrics.latestInitials.length" class="avatar more">
+              +{{ metrics.activeMembers - metrics.latestInitials.length }}
+            </div>
           </div>
         </div>
       </div>
       <div class="hero-panels">
         <div class="panel">
           <span class="label">Status Membership</span>
-          <strong>Aktif • 27 hari</strong>
-          <small>Pembaruan otomatis setelah pembayaran berhasil.</small>
+          <strong>{{ statusTitle }}</strong>
+          <small>{{ statusSubtitle }}</small>
         </div>
         <div class="panel alt">
           <span class="label">Metode Bayar</span>
@@ -49,7 +113,7 @@ const registerLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'D
             <span>e-Wallet</span>
             <span>Kartu</span>
           </div>
-          <small>Dari Midtrans Snap Sandbox/Prod.</small>
+          <small>{{ trustCopy }}</small>
         </div>
       </div>
     </section>
