@@ -85,13 +85,13 @@ const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mu
 .home {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
 }
 .hero {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap: 1.25rem;
-  padding: 1.75rem;
+  padding: 2.25rem;
   position: relative;
   overflow: hidden;
 }
@@ -132,6 +132,13 @@ const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mu
 .ghost {
   background: var(--surface-alt);
   color: var(--text);
+}
+.solid:hover {
+  filter: brightness(0.95);
+}
+.ghost:hover {
+  background: var(--primary-contrast);
+  color: var(--primary);
 }
 .trust {
   margin-top: 1rem;
@@ -197,13 +204,17 @@ const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mu
   font-weight: 600;
   font-size: 0.9rem;
 }
+.panel + .panel {
+  margin-top: 0.25rem;
+}
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
 }
 .feature {
-  padding: 1.25rem;
+  padding: 1.35rem;
+  min-height: 180px;
 }
 .feature h3 {
   margin: 0 0 0.3rem;
@@ -217,7 +228,7 @@ const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mu
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem 1.75rem;
 }
 .eyebrow {
   text-transform: uppercase;

@@ -242,6 +242,10 @@ onMounted(async () => {
   font-weight: 700;
   gap: 0.35rem;
 }
+.ghost-btn:hover {
+  background: var(--primary-contrast);
+  color: var(--primary);
+}
 .membership-section {
   padding: 1.5rem;
   border: 1px solid var(--border);
@@ -336,6 +340,9 @@ onMounted(async () => {
   background: linear-gradient(120deg, var(--primary), var(--primary-alt));
   color: #fff;
   font-weight: 700;
+}
+.cta:hover {
+  filter: brightness(0.95);
 }
 
 .pill.small {

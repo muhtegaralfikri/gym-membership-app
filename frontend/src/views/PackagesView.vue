@@ -176,7 +176,7 @@ const handleBuy = async (packageId: number) => {
           </div>
           <span class="badge">Mulai hari ini</span>
         </div>
-        <p class="price">Rp {{ Number(pkg.price).toLocaleString('id-ID') }}</p>
+        <p class="price">Rp{{ Number(pkg.price).toLocaleString('id-ID') }}</p>
         <p class="description">{{ pkg.description }}</p>
         <ul class="features" v-if="pkg.features?.length">
           <li v-for="feat in pkg.features" :key="feat">• {{ feat }}</li>
@@ -253,6 +253,13 @@ const handleBuy = async (packageId: number) => {
 .hero-cta .ghost {
   background: var(--surface-alt);
   color: var(--text);
+}
+.hero-cta .solid:hover {
+  filter: brightness(0.95);
+}
+.hero-cta .ghost:hover {
+  background: var(--primary-contrast);
+  color: var(--primary);
 }
 
 .hero-art {
@@ -350,6 +357,7 @@ const handleBuy = async (packageId: number) => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  min-height: 360px;
   transition: transform 0.12s ease, box-shadow 0.2s ease;
 }
 
@@ -406,10 +414,14 @@ const handleBuy = async (packageId: number) => {
   flex-direction: column;
   gap: 0.25rem;
   color: var(--muted);
+  margin-top: auto;
 }
 
 button {
   align-self: flex-start;
+}
+.actions button:hover {
+  filter: brightness(0.96);
 }
 
 @media (max-width: 900px) {
