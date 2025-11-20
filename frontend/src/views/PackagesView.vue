@@ -133,16 +133,29 @@ const handleBuy = async (packageId: number) => {
 <template>
   <div class="packages-page">
     <header class="hero">
-      <div>
-        <p class="eyebrow">Paket Membership</p>
-        <h2>Latihan lebih konsisten, hasil lebih cepat</h2>
+      <div class="hero-copy">
+        <div class="pill">Paket Membership</div>
+        <h2>Latihan lebih konsisten, hasil lebih cepat.</h2>
         <p class="sub">
-          Pilih paket sesuai kebutuhanmu. Semua paket aktif langsung setelah pembayaran.
+          Pilih paket sesuai kebutuhanmu. Aktivasi berlaku otomatis usai pembayaran, tanpa ribet.
         </p>
+        <div class="hero-cta">
+          <RouterLink class="solid" to="/packages">Lihat paket</RouterLink>
+          <RouterLink class="ghost" to="/profile">Status saya</RouterLink>
+        </div>
       </div>
-      <div class="hero-cta">
-        <RouterLink class="ghost" to="/profile">Lihat status saya</RouterLink>
-        <RouterLink class="solid" to="/login" v-if="!authStore.isAuthenticated">Login</RouterLink>
+      <div class="hero-art">
+        <div class="glow"></div>
+        <div class="metrics">
+          <span class="metric-title">Rata-rata hadir</span>
+          <strong>4.2x/minggu</strong>
+          <small>Member aktif</small>
+        </div>
+        <div class="metrics alt">
+          <span class="metric-title">Durasi sisa</span>
+          <strong>27 hari</strong>
+          <small>Langsung terukur</small>
+        </div>
       </div>
     </header>
 
@@ -157,15 +170,21 @@ const handleBuy = async (packageId: number) => {
     <div v-else class="packages-grid">
       <div v-for="pkg in parsedPackages" :key="pkg.id" class="package-card">
         <div class="card-header">
-          <h3>{{ pkg.name }}</h3>
-          <span class="badge">{{ pkg.durationDays }} Hari</span>
+          <div>
+            <h3>{{ pkg.name }}</h3>
+            <p class="duration">{{ pkg.durationDays }} hari aktif</p>
+          </div>
+          <span class="badge">Mulai hari ini</span>
         </div>
         <p class="price">Rp {{ Number(pkg.price).toLocaleString('id-ID') }}</p>
         <p class="description">{{ pkg.description }}</p>
         <ul class="features" v-if="pkg.features?.length">
           <li v-for="feat in pkg.features" :key="feat">• {{ feat }}</li>
         </ul>
-        <button @click="handleBuy(pkg.id)">Beli Sekarang</button>
+        <div class="actions">
+          <button @click="handleBuy(pkg.id)">Beli Sekarang</button>
+          <small>Termasuk akses kelas & locker dasar</small>
+        </div>
       </div>
     </div>
   </div>
@@ -179,56 +198,103 @@ const handleBuy = async (packageId: number) => {
 }
 
 .hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 1.25rem;
+  align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 1.5rem;
+  border-radius: 20px;
+  padding: 1.75rem;
   box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
 }
 
-.eyebrow {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.75rem;
-  color: var(--muted);
-  margin: 0 0 0.25rem 0;
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 80% 10%, rgba(242, 108, 45, 0.08), transparent 25%);
+  pointer-events: none;
 }
 
-.hero h2 {
-  margin: 0 0 0.35rem 0;
-  font-size: 1.75rem;
+.hero-copy h2 {
+  margin: 0.35rem 0 0.45rem;
+  font-size: 2rem;
+  letter-spacing: -0.02em;
 }
 
 .sub {
   color: var(--muted);
   margin: 0;
+  max-width: 46ch;
 }
 
 .hero-cta {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
 }
 
 .hero-cta .solid,
 .hero-cta .ghost {
   border-radius: 12px;
-  padding: 0.65rem 1rem;
+  padding: 0.7rem 1.1rem;
   font-weight: 700;
   border: 1px solid var(--border);
 }
 
 .hero-cta .solid {
-  background: linear-gradient(120deg, var(--primary), var(--accent-hover));
+  background: linear-gradient(120deg, var(--primary), var(--primary-alt));
   color: #fff;
 }
 
 .hero-cta .ghost {
   background: var(--surface-alt);
   color: var(--text);
+}
+
+.hero-art {
+  position: relative;
+  height: 100%;
+  display: grid;
+  gap: 0.75rem;
+  justify-items: end;
+}
+
+.glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 60% 40%, rgba(15, 157, 152, 0.18), transparent 40%);
+  filter: blur(18px);
+  z-index: 0;
+}
+
+.metrics {
+  position: relative;
+  z-index: 1;
+  padding: 1rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  box-shadow: var(--shadow);
+}
+
+.metrics.alt {
+  background: linear-gradient(135deg, var(--primary-contrast), #fff);
+}
+
+.metric-title {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.metrics strong {
+  display: block;
+  font-size: 1.4rem;
+  margin: 0.15rem 0;
 }
 
 .message {
@@ -284,12 +350,28 @@ const handleBuy = async (packageId: number) => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
 }
+
+.package-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.1);
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
+}
+.card-header h3 {
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.duration {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
 }
 .badge {
   background: var(--primary-contrast);
@@ -318,7 +400,24 @@ const handleBuy = async (packageId: number) => {
 .features li {
   margin: 0.15rem 0;
 }
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  color: var(--muted);
+}
+
 button {
   align-self: flex-start;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    grid-template-columns: 1fr;
+  }
+  .hero-art {
+    justify-items: start;
+  }
 }
 </style>

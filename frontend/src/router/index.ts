@@ -9,6 +9,7 @@ import LoginView from '../views/LoginView.vue'
 import ProfileView from '../views/ProfileView.vue'
 // 1. Import PackagesView
 import PackagesView from '../views/PackagesView.vue'
+import HomeView from '../views/HomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -16,7 +17,7 @@ const router = createRouter({
     {
       path: '/',
       name: 'home',
-      component: PackagesView, // <-- 2. Jadikan PackagesView sebagai Halaman Utama
+      component: HomeView, // Halaman utama/beranda
     },
     {
       path: '/login',
