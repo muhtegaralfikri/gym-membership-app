@@ -22,7 +22,7 @@ export class PaymentsService {
    * Menangani notifikasi webhook dari Payment Gateway
    */
   async handlePaymentNotification(dto: PaymentNotificationDto) {
-    const { order_id, transaction_status, gross_amount } = dto;
+    const { order_id, transaction_status, gross_amount, fraud_status } = dto;
 
     // 1. Cari transaksi berdasarkan order_id
     const transaction = await this.prisma.transaction.findUnique({
@@ -46,7 +46,10 @@ export class PaymentsService {
     }
 
     // 4. Proses berdasarkan status
-    if (transaction_status === 'settlement') {
+    const isSuccessfulCapture =
+      transaction_status === 'capture' && fraud_status === 'accept';
+
+    if (transaction_status === 'settlement' || isSuccessfulCapture) {
       try {
         // 'prisma' di dalam callback ini adalah TransactionClient
         const result = await this.prisma.$transaction(
@@ -96,6 +99,24 @@ export class PaymentsService {
 
         throw new InternalServerErrorException('Failed to process payment');
       }
+    } else if (transaction_status === 'capture' && fraud_status === 'challenge') {
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: PaymentStatus.pending,
+          paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return { message: 'Transaction is challenged and pending manual review.' };
+    } else if (transaction_status === 'capture' && fraud_status === 'deny') {
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: PaymentStatus.failed,
+          paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return { message: 'Transaction denied by bank.' };
     } else if (
       transaction_status === 'expire' ||
       transaction_status === 'cancel' ||

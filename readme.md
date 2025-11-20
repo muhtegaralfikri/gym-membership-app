@@ -75,3 +75,41 @@ Tugas berikutnya adalah **Refactor** API agar lebih profesional (menggunakan *pr
 
 Setelah semua *endpoint* backend di atas selesai dan rapi, kita akan beralih ke folder `/frontend` dan mulai membangun aplikasi Vue.js untuk mengonsumsi API ini.
 
+---
+
+## Quickstart (Local Dev)
+
+1. Backend
+   - Salin `backend/.env.example` ke `backend/.env` dan isi kredensial MySQL + Midtrans.
+   - Pastikan DB utama (`gymdb`) dan shadow (`prisma_shadow`) tersedia atau user boleh `CREATE DATABASE`.
+   - Jalankan:
+     ```bash
+     cd backend
+     npm install
+     npx prisma migrate dev --name init
+     npx prisma db seed          # isi role, paket, admin default
+     npm run start:dev
+     ```
+2. Frontend
+   - Salin `frontend/.env.example` ke `frontend/.env` dan set `VITE_API_BASE_URL` serta `VITE_MIDTRANS_CLIENT_KEY`.
+   - Jalankan:
+     ```bash
+     cd frontend
+     npm install
+     npm run dev
+     ```
+
+## Default Accounts
+- Admin: `admin@example.com` / `Admin123!`
+- Member: buat lewat register atau tambahkan di seed bila perlu.
+
+## Keamanan & Hardening
+- CORS terbatas pada asal yang diset di `main.ts`.
+- Helmet + rate limit aktif.
+- Prisma exception filter memetakan error DB ke HTTP yang lebih jelas.
+
+## Catatan Migrasi
+- Folder `backend/prisma/migrations` kini menjadi sumber kebenaran skema.
+- Untuk tim/non-prod: gunakan `npx prisma migrate dev` (butuh shadow DB).
+- Untuk deploy: gunakan `npx prisma migrate deploy` di server.
+

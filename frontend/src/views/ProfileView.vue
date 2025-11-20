@@ -123,24 +123,31 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* Style tidak berubah */
 .profile-page {
-  max-width: 800px;
+  max-width: 880px;
   margin: 2rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 .profile-section,
 .membership-section {
   padding: 1.5rem;
-  border: 1px solid #444;
-  border-radius: 8px;
-  margin-bottom: 2rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 .profile-details p {
   text-align: left;
   line-height: 1.6;
 }
 .message {
-  color: red;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: #ffe7e7;
+  color: #c62828;
+  border: 1px solid #ffcdd2;
 }
 .membership-list {
   display: flex;
@@ -149,18 +156,19 @@ onMounted(async () => {
 }
 .membership-card {
   padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid #555;
+  border-radius: 12px;
+  border: 1px solid var(--border);
   text-align: left;
+  background: var(--surface-alt);
 }
 .membership-card.active {
-  border-left: 5px solid #42b883;
+  border-left: 6px solid var(--primary);
 }
 .membership-card.upcoming {
-  border-left: 5px solid #ffc107;
+  border-left: 6px solid #ffc107;
 }
 .membership-card.expired {
-  border-left: 5px solid #555;
+  border-left: 6px solid #555;
   opacity: 0.7;
 }
 .membership-card h4 {

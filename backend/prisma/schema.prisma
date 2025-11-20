@@ -24,8 +24,8 @@ generator client {
 
 // 2. Konfigurasi Datasource (Database)
 datasource db {
-  provider = "postgresql" // Kita pakai Postgres (Neon)
-  url      = env("DATABASE_URL")
+  provider = "mysql" // Menggunakan MySQL
+  url      = env("DATABASE_URL") // Required for Prisma 6.x CLI compatibility
 }
 
 // 3. Definisi Model (Skema Tabel)

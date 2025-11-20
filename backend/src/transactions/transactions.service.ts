@@ -67,12 +67,15 @@ export class TransactionsService {
       throw new NotFoundException('User not found');
     }
 
+    // Midtrans expects integer gross_amount (no decimal for IDR)
+    const grossAmount = Math.round(Number(pkg.price.toNumber()));
+
     const orderId = uuidv4();
 
     const parameter = {
       transaction_details: {
         order_id: orderId,
-        gross_amount: pkg.price.toNumber(),
+        gross_amount: grossAmount,
       },
       item_details: [
         {
@@ -87,6 +90,17 @@ export class TransactionsService {
         email: user.email,
         phone: user.phone || '',
       },
+      enabled_payments: [
+        'bca_va',
+        'bri_va',
+        'bni_va',
+        'permata_va',
+        'other_va',
+        'echannel',
+        'gopay',
+        'shopeepay',
+        'credit_card',
+      ],
     };
 
     try {
