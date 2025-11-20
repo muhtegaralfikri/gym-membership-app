@@ -11,6 +11,10 @@ import { PrismaExceptionFilter } from './filters/prisma-exception.filter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
+    : [];
+
   // Security middlewares
   app.use(
     helmet({
@@ -27,12 +31,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: [
-      'http://localhost:5173',
-      'https://gym-membership-app-lake.vercel.app',
-      'https://www.vuenest.my.id'// <-- Izinkan localhost (untuk dev)
-      // Nanti kita tambahkan URL Vercel di sini
-    ],
+    origin: allowedOrigins,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
