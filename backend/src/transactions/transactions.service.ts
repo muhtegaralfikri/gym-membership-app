@@ -138,7 +138,8 @@ export class TransactionsService {
         package: { connect: { id: packageId } },
       };
       if (appliedPromoId) {
-        data.promoCodeId = appliedPromoId;
+        // gunakan relasi promoCode sesuai schema Prisma
+        data.promoCode = { connect: { id: appliedPromoId } };
       }
 
       const newTransaction = await (this.prisma as any).transaction.create({
