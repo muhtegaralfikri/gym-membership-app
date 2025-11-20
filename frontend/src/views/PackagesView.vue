@@ -21,9 +21,9 @@ const authStore = useAuthStore()
 const router = useRouter()
 const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY
 const snapReady = ref(false)
-const heroMetrics = ref<{ activeMembers: number; averageRemainingDays: number }>({
+const heroMetrics = ref<{ activeMembers: number; remainingDays: number }>({
   activeMembers: 0,
-  averageRemainingDays: 0,
+  remainingDays: 0,
 })
 
 // Parse fitur paket menjadi array
@@ -76,7 +76,7 @@ const fetchPackages = async () => {
     if (metricsResponse?.data) {
       heroMetrics.value = {
         activeMembers: metricsResponse.data.activeMembers || 0,
-        averageRemainingDays: metricsResponse.data.averageRemainingDays || 0,
+        remainingDays: metricsResponse.data.remainingDays || 0,
       }
     }
     const response = packagesResponse
@@ -167,8 +167,8 @@ const handleBuy = async (packageId: number) => {
           <small>Real-time</small>
         </div>
         <div class="metrics alt">
-          <span class="metric-title">Rata-rata sisa</span>
-          <strong>{{ heroMetrics.averageRemainingDays || 0 }} hari</strong>
+          <span class="metric-title">Sisa</span>
+          <strong>{{ heroMetrics.remainingDays || 0 }} hari</strong>
           <small>Membership aktif</small>
         </div>
       </div>
