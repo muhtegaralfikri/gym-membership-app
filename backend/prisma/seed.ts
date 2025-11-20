@@ -1,6 +1,7 @@
 // prisma/seed.ts
 
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
 
 // Inisialisasi Prisma Client
 const prisma = new PrismaClient();
@@ -20,6 +21,25 @@ async function main() {
   });
 
   console.log('Roles created:', { adminRole, memberRole });
+
+  // --- Seed Admin User (default) ---
+  const adminEmail = 'admin@example.com';
+  const adminPassword = await bcrypt.hash('Admin123!', 10);
+
+  const adminUser = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      name: 'Super Admin',
+      email: adminEmail,
+      password: adminPassword,
+      phone: '0800000000',
+      roleId: adminRole.id,
+      isActive: true,
+    },
+  });
+
+  console.log('Default admin created:', adminUser.email);
 
   // --- Seed Packages (BARU) ---
   // Kita buat 3 paket contoh
