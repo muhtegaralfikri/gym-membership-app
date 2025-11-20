@@ -10,9 +10,15 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { MembershipsService } from 'src/memberships/memberships.service';
 import { PaymentNotificationDto } from './dto/payment-notification.dto';
 import { PaymentStatus, Prisma } from '@prisma/client';
+import { computeMidtransSignature } from './utils/midtrans-signature';
 
 @Injectable()
 export class PaymentsService {
+  /**
+   * Batas waktu transaksi pending sebelum dianggap gagal (ms)
+   */
+  private readonly pendingTtlMs = 24 * 60 * 60 * 1000; // 24 jam
+
   constructor(
     private prisma: PrismaService,
     private membershipsService: MembershipsService,
@@ -22,7 +28,23 @@ export class PaymentsService {
    * Menangani notifikasi webhook dari Payment Gateway
    */
   async handlePaymentNotification(dto: PaymentNotificationDto) {
-    const { order_id, transaction_status, gross_amount, fraud_status } = dto;
+    const { order_id, transaction_status, gross_amount, fraud_status, status_code, signature_key } = dto;
+
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    if (!serverKey) {
+      throw new InternalServerErrorException('Missing MIDTRANS_SERVER_KEY');
+    }
+
+    const expectedSignature = computeMidtransSignature(
+      order_id,
+      status_code,
+      gross_amount,
+      serverKey,
+    );
+
+    if (expectedSignature !== signature_key) {
+      throw new BadRequestException('Invalid signature');
+    }
 
     // 1. Cari transaksi berdasarkan order_id
     const transaction = await this.prisma.transaction.findUnique({
@@ -40,6 +62,11 @@ export class PaymentsService {
       return { message: 'Transaction already processed successfully.' };
     }
 
+    // Idempotensi sederhana: jangan proses ulang transaksi yang sudah gagal
+    if (transaction.status === PaymentStatus.failed) {
+      return { message: 'Transaction already marked as failed.' };
+    }
+
     // 3. Validasi nominal
     if (transaction.amount.toNumber() !== parseFloat(gross_amount)) {
       throw new BadRequestException('Invalid amount');
@@ -48,6 +75,23 @@ export class PaymentsService {
     // 4. Proses berdasarkan status
     const isSuccessfulCapture =
       transaction_status === 'capture' && fraud_status === 'accept';
+
+    // Tandai gagal jika pending terlalu lama
+    const isExpiredPending =
+      transaction.status === PaymentStatus.pending &&
+      new Date().getTime() - transaction.createdAt.getTime() > this.pendingTtlMs &&
+      transaction_status === 'pending';
+
+    if (isExpiredPending) {
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: PaymentStatus.failed,
+          paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+        },
+      });
+      return { message: 'Transaction expired and marked as failed.' };
+    }
 
     if (transaction_status === 'settlement' || isSuccessfulCapture) {
       try {

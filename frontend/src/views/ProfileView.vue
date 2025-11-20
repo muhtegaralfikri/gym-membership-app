@@ -16,11 +16,24 @@ interface Membership {
 }
 // ------------------------------------------
 
+interface UserTransaction {
+  id: number
+  orderId: string
+  status: 'pending' | 'success' | 'failed'
+  amount: string
+  createdAt: string
+  package?: {
+    name: string
+    durationDays: number
+  }
+}
+
 const authStore = useAuthStore()
 const router = useRouter()
 
 const profile = ref<UserProfile | null>(null)
 const memberships = ref<Membership[]>([])
+const transactions = ref<UserTransaction[]>([])
 const message = ref('')
 
 const initial = computed(
@@ -45,6 +58,11 @@ const formatStatus = (status: Membership['status']) => {
   return status.charAt(0).toUpperCase() + status.slice(1)
 }
 
+const formatCurrency = (amount: string | number) => {
+  const num = typeof amount === 'number' ? amount : Number(amount)
+  return `Rp${num.toLocaleString('id-ID')}`
+}
+
 onMounted(async () => {
   if (!authStore.isAuthenticated) {
     message.value = 'Anda harus login untuk melihat halaman ini.'
@@ -54,10 +72,11 @@ onMounted(async () => {
   try {
     // --- 2. GANTI SEMUA FETCH DENGAN API.GET ---
     // Kita jalankan 2 request API secara paralel
-    const [profileResponse, membershipResponse] = await Promise.all([
+    const [profileResponse, membershipResponse, transactionResponse] = await Promise.all([
       // 'api' otomatis menambahkan base URL + header token
       api.get('/users/profile'),
       api.get('/memberships/my-status'),
+      api.get('/transactions'),
     ])
 
     // Di Axios, data ada di 'response.data'
@@ -67,6 +86,7 @@ onMounted(async () => {
 
     const membershipData: Membership[] = membershipResponse.data
     memberships.value = membershipData
+    transactions.value = transactionResponse.data as UserTransaction[]
   } catch (error: any) {
     // --- 3. ERROR HANDLING AXIOS ---
     if (error.response) {
@@ -157,6 +177,36 @@ onMounted(async () => {
               <small>Berakhir</small>
               <strong>{{ formatDate(mem.endDate) }}</strong>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="profile" class="transactions card">
+      <div class="section-head">
+        <h3>Transaksi Terbaru</h3>
+        <RouterLink class="ghost-btn" to="/packages">Lanjutkan Bayar</RouterLink>
+      </div>
+      <div v-if="!transactions.length" class="empty">
+        <p>Belum ada transaksi.</p>
+      </div>
+      <div v-else class="tx-list">
+        <div v-for="tx in transactions" :key="tx.id" class="tx-card">
+          <div>
+            <p class="eyebrow">Order</p>
+            <h4>{{ tx.orderId }}</h4>
+            <p class="muted">{{ tx.package?.name || 'Paket' }} • {{ formatCurrency(tx.amount) }}</p>
+            <p class="muted small">{{ formatDate(tx.createdAt) }}</p>
+          </div>
+          <div class="tx-status">
+            <span :class="['pill', 'small', tx.status]">{{ tx.status }}</span>
+            <p v-if="tx.status === 'pending'" class="tip">
+              Menunggu pembayaran. Buka tautan Snap terbaru atau hubungi admin.
+            </p>
+            <p v-else-if="tx.status === 'failed'" class="tip">
+              Gagal/berakhir. Buat transaksi baru jika masih ingin lanjut.
+            </p>
+            <p v-else class="tip success">Pembayaran sukses, membership aktif.</p>
           </div>
         </div>
       </div>
@@ -348,6 +398,62 @@ onMounted(async () => {
 .pill.small {
   padding: 0.3rem 0.7rem;
   font-size: 0.85rem;
+}
+
+.transactions {
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.tx-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  background: var(--surface-alt);
+}
+.tx-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-end;
+  min-width: 200px;
+}
+.tip {
+  margin: 0;
+  color: var(--muted);
+  text-align: right;
+}
+.tip.success {
+  color: var(--primary);
+}
+.small {
+  font-size: 0.9rem;
+}
+.pill.pending {
+  background: #fff4e5;
+  color: #d97706;
+  border-color: #f5d0a4;
+}
+.pill.failed {
+  background: #ffe7e7;
+  color: #c62828;
+  border-color: #ffcdd2;
+}
+.pill.success {
+  background: var(--primary-contrast);
+  color: var(--primary);
+  border-color: var(--primary-contrast);
 }
 
 @media (max-width: 780px) {

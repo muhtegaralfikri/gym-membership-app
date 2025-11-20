@@ -14,6 +14,11 @@ export class PaymentNotificationDto {
   @IsNotEmpty()
   order_id: string; // Ini adalah orderId (UUID) yang kita buat di TransactionsService
 
+  @ApiProperty({ example: '200' })
+  @IsString()
+  @IsNotEmpty()
+  status_code: string;
+
   @ApiProperty({ example: '150000.00' })
   @IsString()
   @IsNotEmpty()
@@ -23,6 +28,11 @@ export class PaymentNotificationDto {
   @IsString()
   @IsOptional()
   fraud_status?: string;
+
+  @ApiProperty({ example: 'd0ae5e6c1f...' })
+  @IsString()
+  @IsNotEmpty()
+  signature_key: string;
 
   // Di aplikasi production, kita juga akan menerima dan memvalidasi
   // 'signature_key' untuk keamanan, tapi kita skip untuk simulasi ini.
