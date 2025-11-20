@@ -66,7 +66,7 @@ export class MembershipsService {
 
     // 2. Tentukan Tanggal Mulai (startDate)
     // Cari membership terakhir (aktif atau upcoming) dari user ini
-    const lastMembership = await this.prisma.userMembership.findFirst({
+    const lastMembership = await db.userMembership.findFirst({
       where: {
         userId: userId,
         status: { in: [MembershipStatus.active, MembershipStatus.upcoming] },
@@ -92,7 +92,7 @@ export class MembershipsService {
 
     // 4. Buat record UserMembership
     try {
-      const newMembership = await this.prisma.userMembership.create({
+      const newMembership = await db.userMembership.create({
         data: {
           startDate: startDate,
           endDate: endDate,
