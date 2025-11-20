@@ -10,5 +10,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    // Jangan hapus isi folder dist (mis. file .user.ini yang diset server)
+    emptyOutDir: false,
+  },
   // --- BATAS TAMBAHAN ---
 })
