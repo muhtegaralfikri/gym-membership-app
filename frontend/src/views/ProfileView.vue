@@ -493,5 +493,13 @@ onMounted(async () => {
   .chips {
     gap: 0.35rem;
   }
+  .tx-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .tx-status {
+    align-items: flex-start;
+    text-align: left;
+  }
 }
 </style>

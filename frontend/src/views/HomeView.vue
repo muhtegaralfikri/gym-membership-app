@@ -253,4 +253,13 @@ const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mu
     align-items: flex-start;
   }
 }
+
+@media (max-width: 768px) {
+  .hero-copy h1 {
+    font-size: 1.8rem;
+  }
+  .cta-strip {
+    gap: 0.75rem;
+  }
+}
 </style>

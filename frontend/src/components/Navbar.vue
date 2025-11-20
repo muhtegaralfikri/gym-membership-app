@@ -30,30 +30,43 @@ const handleLogout = () => {
 }
 
 const isDark = computed(() => theme.value === 'dark')
+const menuOpen = ref(false)
+
+const toggleMenu = () => {
+  menuOpen.value = !menuOpen.value
+}
+
+const closeMenu = () => {
+  menuOpen.value = false
+}
 </script>
 
 <template>
   <nav class="navbar">
     <div class="navbar-brand">
-      <RouterLink to="/">VuNest GYM</RouterLink>
+      <RouterLink to="/" @click="closeMenu">VuNest GYM</RouterLink>
     </div>
     <div class="navbar-actions">
       <button class="theme-toggle" type="button" @click="toggleTheme">
         <span v-if="isDark">🌞 Cerah</span>
         <span v-else>🌙 Gelap</span>
       </button>
-      <div class="navbar-links">
-        <RouterLink to="/">Menu Utama</RouterLink>
-        <RouterLink to="/packages">Lihat Paket</RouterLink>
+      <button class="burger" type="button" @click="toggleMenu">
+        <span :class="{ open: menuOpen }"></span>
+        <span :class="{ open: menuOpen }"></span>
+        <span :class="{ open: menuOpen }"></span>
+      </button>
+      <div class="navbar-links" :class="{ open: menuOpen }">
+        <RouterLink to="/" @click="closeMenu">Beranda</RouterLink>
+        <RouterLink to="/packages" @click="closeMenu">Lihat Paket</RouterLink>
 
         <template v-if="authStore.isAuthenticated">
-          <RouterLink to="/profile">Profil Saya</RouterLink>
-          <a @click="handleLogout" class="logout-link">Logout</a>
+          <RouterLink to="/profile" @click="closeMenu">Profil Saya</RouterLink>
+          <a @click="() => { handleLogout(); closeMenu(); }" class="logout-link">Logout</a>
         </template>
 
         <template v-else>
-          <RouterLink to="/login">Login</RouterLink>
-          <RouterLink to="/register">Register</RouterLink>
+          <RouterLink to="/login" @click="closeMenu">Login</RouterLink>
         </template>
       </div>
     </div>
@@ -126,5 +139,59 @@ const isDark = computed(() => theme.value === 'dark')
 .theme-toggle:hover {
   background: var(--primary-contrast);
   color: var(--primary);
+}
+
+.burger {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.35rem 0.45rem;
+}
+.burger span {
+  width: 18px;
+  height: 2px;
+  background: var(--text);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.burger span.open:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+.burger span.open:nth-child(2) {
+  opacity: 0;
+}
+.burger span.open:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .navbar-actions {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .navbar-links {
+    width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+    display: none;
+  }
+  .navbar-links.open {
+    display: flex;
+  }
+  .theme-toggle {
+    width: auto;
+  }
+  .burger {
+    display: inline-flex;
+  }
 }
 </style>

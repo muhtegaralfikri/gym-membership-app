@@ -28,6 +28,7 @@ const router = createRouter({
       path: '/register',
       name: 'register',
       component: RegisterView,
+      meta: { hidden: true },
     },
     {
       path: '/profile',

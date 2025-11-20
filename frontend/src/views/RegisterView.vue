@@ -164,4 +164,10 @@ button:disabled {
 .redirect a {
   color: var(--primary);
 }
+
+@media (max-width: 600px) {
+  .login-card {
+    padding: 1.5rem;
+  }
+}
 </style>
