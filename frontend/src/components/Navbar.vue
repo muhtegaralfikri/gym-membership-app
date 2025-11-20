@@ -96,7 +96,7 @@ watch(
               <RouterLink to="/admin-users" @click="handleAdminNav">Kelola pengguna</RouterLink>
             </div>
           </div>
-          <RouterLink to="/profile" @click="closeMenu">Profil Saya</RouterLink>
+          <RouterLink v-if="!authStore.isAdmin" to="/profile" @click="closeMenu">Profil Saya</RouterLink>
           <a @click="() => { handleLogout(); closeMenu(); }" class="logout-link">Logout</a>
         </template>
 

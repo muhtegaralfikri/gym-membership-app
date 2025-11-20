@@ -6,10 +6,26 @@ import api from '@/services/api'
 
 const auth = useAuthStore()
 
-const primaryCta = computed(() => (auth.isAuthenticated ? '/profile' : '/login'))
-const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mulai Login'))
-const registerCta = computed(() => (auth.isAuthenticated ? '/profile' : '/register'))
-const registerLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Daftar'))
+const primaryCta = computed(() => {
+  if (auth.isAuthenticated && auth.isAdmin) return '/admin'
+  if (auth.isAuthenticated) return '/profile'
+  return '/login'
+})
+const primaryLabel = computed(() => {
+  if (auth.isAuthenticated && auth.isAdmin) return 'Dashboard Admin'
+  if (auth.isAuthenticated) return 'Lihat Profil'
+  return 'Mulai Login'
+})
+const registerCta = computed(() => {
+  if (auth.isAuthenticated && auth.isAdmin) return '/admin'
+  if (auth.isAuthenticated) return '/profile'
+  return '/register'
+})
+const registerLabel = computed(() => {
+  if (auth.isAuthenticated && auth.isAdmin) return 'Dashboard Admin'
+  if (auth.isAuthenticated) return 'Lihat Profil'
+  return 'Daftar'
+})
 
 const statusTitle = ref('Aktif • 27 hari')
 const statusSubtitle = ref('Pembaruan otomatis setelah pembayaran berhasil.')
@@ -27,7 +43,7 @@ const metrics = ref<{
 })
 
 onMounted(async () => {
-  if (!auth.isAuthenticated) {
+  if (!auth.isAuthenticated || auth.isAdmin) {
     statusTitle.value = 'Belum login'
     statusSubtitle.value = 'Masuk untuk melihat status membership kamu.'
     return

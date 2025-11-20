@@ -45,8 +45,9 @@ export class PaymentsService {
     }
 
     // 1. Cari transaksi berdasarkan order_id
-    const transaction = await this.prisma.transaction.findUnique({
+    const transaction = await (this.prisma as any).transaction.findUnique({
       where: { orderId: order_id },
+      include: { promoCode: true } as any,
     });
 
     if (!transaction) {
@@ -96,13 +97,21 @@ export class PaymentsService {
         // 'prisma' di dalam callback ini adalah TransactionClient
         const result = await this.prisma.$transaction(
           async (prisma) => {
-            const updatedTransaction = await prisma.transaction.update({
+            const txClient = prisma as any;
+            const updatedTransaction = await txClient.transaction.update({
               where: { id: transaction.id },
               data: {
                 status: PaymentStatus.success,
                 paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
               },
             });
+
+            if (transaction.promoCodeId) {
+              await txClient.promoCode.update({
+                where: { id: transaction.promoCodeId },
+                data: { usedCount: { increment: 1 } },
+              });
+            }
 
             const membership =
               await this.membershipsService.activateMembership(

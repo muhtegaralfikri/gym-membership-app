@@ -10,8 +10,11 @@ interface Package {
   name: string
   description: string | null
   price: string
+  promoPrice?: string | number | null
+  promoExpiresAt?: string | null
   durationDays: number
   features: string | null
+  bundleItems?: string | null
 }
 
 const packages = ref<Package[]>([])
@@ -19,12 +22,28 @@ const loading = ref(true)
 const message = ref('')
 const authStore = useAuthStore()
 const router = useRouter()
+const promoCode = ref('')
+const appliedPromo = ref<{
+  code: string
+  discount: number
+  finalAmount: number
+  basePrice: number
+  packageId: number
+} | null>(null)
+const promoMessage = ref('')
+const promoLoading = ref(false)
+const isAdmin = computed(() => authStore.isAdmin)
 const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY
 const snapReady = ref(false)
 const heroMetrics = ref<{ activeMembers: number; remainingDays: number }>({
   activeMembers: 0,
   remainingDays: 0,
 })
+
+const formatCurrency = (value: string | number) => {
+  const num = typeof value === 'number' ? value : Number(value || 0)
+  return `Rp${num.toLocaleString('id-ID')}`
+}
 
 // Parse fitur paket menjadi array
 const parsedPackages = computed(() =>
@@ -40,7 +59,26 @@ const parsedPackages = computed(() =>
         features = [pkg.features]
       }
     }
-    return { ...pkg, features }
+    let bundle: string[] = []
+    if (pkg.bundleItems) {
+      if (Array.isArray(pkg.bundleItems)) {
+        bundle = pkg.bundleItems as string[]
+      } else if (typeof pkg.bundleItems === 'string') {
+        try {
+          const parsedBundle = JSON.parse(pkg.bundleItems)
+          if (Array.isArray(parsedBundle)) bundle = parsedBundle
+        } catch {
+          bundle = []
+        }
+      }
+    }
+
+    const now = new Date()
+    const promoActive =
+      pkg.promoPrice && (!pkg.promoExpiresAt || new Date(pkg.promoExpiresAt) > now)
+
+    const basePrice = promoActive ? Number(pkg.promoPrice) : Number(pkg.price)
+    return { ...pkg, features, bundle, promoActive, basePrice }
   }),
 )
 
@@ -90,12 +128,48 @@ const fetchPackages = async () => {
   }
 }
 
+const applyPromo = async (pkgId: number) => {
+  promoMessage.value = ''
+  if (!promoCode.value) {
+    promoMessage.value = 'Masukkan kode promo.'
+    return
+  }
+
+  if (!authStore.isAuthenticated) {
+    promoMessage.value = 'Login untuk menerapkan kode promo.'
+    router.push('/login')
+    return
+  }
+
+  promoLoading.value = true
+  try {
+    const res = await api.post('/promos/validate', {
+      code: promoCode.value,
+      packageId: pkgId,
+    })
+    appliedPromo.value = {
+      code: res.data.promo.code,
+      discount: res.data.discount,
+      finalAmount: res.data.finalAmount,
+      basePrice: res.data.basePrice,
+      packageId: pkgId,
+    }
+    promoMessage.value = `Kode ${promoCode.value.toUpperCase()} diterapkan.`
+  } catch (err: any) {
+    appliedPromo.value = null
+    promoMessage.value = err?.response?.data?.message || 'Kode promo tidak valid.'
+  } finally {
+    promoLoading.value = false
+  }
+}
+
 // Panggil 'fetchPackages' saat komponen dimuat
 onMounted(fetchPackages)
 
 // Fungsi untuk menangani pembelian (API Member)
 const handleBuy = async (packageId: number) => {
   message.value = ''
+  promoMessage.value = ''
 
   if (!authStore.isAuthenticated) {
     message.value = 'Anda harus login untuk membeli paket.'
@@ -103,9 +177,18 @@ const handleBuy = async (packageId: number) => {
     return
   }
 
+  if (authStore.isAdmin) {
+    message.value = 'Akun admin tidak membutuhkan pembelian membership.'
+    router.push('/admin')
+    return
+  }
+
   try {
     await loadSnap()
-    const response = await api.post('/transactions', { packageId })
+    const response = await api.post('/transactions', {
+      packageId,
+      promoCode: appliedPromo.value?.packageId === packageId ? appliedPromo.value.code : undefined,
+    })
     const data = response.data // data.paymentToken
 
     ;(window as any).snap.pay(data.paymentToken, {
@@ -156,7 +239,8 @@ const handleBuy = async (packageId: number) => {
         </p>
         <div class="hero-cta">
           <RouterLink class="solid" to="/packages">Lihat paket</RouterLink>
-          <RouterLink class="ghost" to="/profile">Status saya</RouterLink>
+          <RouterLink v-if="!isAdmin" class="ghost" to="/profile">Status saya</RouterLink>
+          <RouterLink v-else class="ghost" to="/admin">Dashboard admin</RouterLink>
         </div>
       </div>
       <div class="hero-art">
@@ -176,6 +260,9 @@ const handleBuy = async (packageId: number) => {
 
     <p v-if="message" class="message" :class="{ success: message.includes('sukses') }">
       {{ message }}
+    </p>
+    <p v-if="promoMessage" class="message alt" :class="{ success: promoMessage.includes('diterapkan') }">
+      {{ promoMessage }}
     </p>
 
     <div v-if="loading" class="skeleton-grid">
@@ -198,11 +285,34 @@ const handleBuy = async (packageId: number) => {
           </div>
           <span class="badge">Mulai hari ini</span>
         </div>
-        <p class="price">Rp{{ Number(pkg.price).toLocaleString('id-ID') }}</p>
+        <div class="price-block">
+          <p class="price">{{ formatCurrency(pkg.promoActive ? pkg.basePrice : pkg.price) }}</p>
+          <p v-if="pkg.promoActive" class="price small muted">
+            <s>{{ formatCurrency(pkg.price) }}</s>
+            <span class="badge promo-pill">Promo</span>
+          </p>
+          <p v-if="appliedPromo?.packageId === pkg.id" class="price small success">
+            Harga promo code: {{ formatCurrency(appliedPromo.finalAmount) }}
+          </p>
+        </div>
         <p class="description">{{ pkg.description }}</p>
         <ul class="features" v-if="pkg.features?.length">
           <li v-for="feat in pkg.features" :key="feat">• {{ feat }}</li>
         </ul>
+        <ul class="features bundle" v-if="pkg.bundle?.length">
+          <li v-for="item in pkg.bundle" :key="item">+ {{ item }}</li>
+        </ul>
+        <div class="promo-apply">
+          <input
+            v-model="promoCode"
+            type="text"
+            placeholder="Kode promo"
+            :disabled="promoLoading"
+          />
+          <button type="button" class="ghost-btn" :disabled="promoLoading" @click="applyPromo(pkg.id)">
+            {{ promoLoading ? 'Memeriksa...' : 'Terapkan' }}
+          </button>
+        </div>
         <div class="actions">
           <button @click="handleBuy(pkg.id)">Beli Sekarang</button>
           <small>Termasuk akses kelas & locker dasar</small>
@@ -340,6 +450,12 @@ const handleBuy = async (packageId: number) => {
   border-color: #b2f5ea;
 }
 
+.message.alt {
+  background: #f0f4ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
 .skeleton-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -408,6 +524,21 @@ const handleBuy = async (packageId: number) => {
   color: var(--primary);
   margin: 0.25rem 0;
 }
+.price-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.price.small {
+  font-size: 1rem;
+  font-weight: 600;
+}
+.price.success {
+  color: #0f9d98;
+}
+.promo-pill {
+  margin-left: 0.35rem;
+}
 .description {
   color: var(--muted);
   min-height: 38px;
@@ -420,6 +551,35 @@ const handleBuy = async (packageId: number) => {
 }
 .features li {
   margin: 0.15rem 0;
+}
+.features.bundle {
+  color: var(--primary);
+}
+
+.promo-apply {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.35rem 0 0.2rem;
+}
+
+.promo-apply input {
+  flex: 1;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+
+.promo-apply .ghost-btn {
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+}
+
+.ghost-btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 .actions {

@@ -37,6 +37,8 @@ const transactions = ref<UserTransaction[]>([])
 const message = ref('')
 const loading = ref(true)
 
+const isAdmin = computed(() => authStore.isAdmin || profile.value?.roleId === 1)
+
 const initial = computed(
   () => profile.value?.name?.charAt(0).toUpperCase() ?? '?',
 )
@@ -72,22 +74,23 @@ onMounted(async () => {
   }
 
   try {
-    // --- 2. GANTI SEMUA FETCH DENGAN API.GET ---
-    // Kita jalankan 2 request API secara paralel
-    const [profileResponse, membershipResponse, transactionResponse] = await Promise.all([
-      // 'api' otomatis menambahkan base URL + header token
-      api.get('/users/profile'),
-      api.get('/memberships/my-status'),
-      api.get('/transactions'),
-    ])
+    const profileResponse = await api.get('/users/profile')
 
-    // Di Axios, data ada di 'response.data'
     const profileData: UserProfile = profileResponse.data
     profile.value = profileData
     authStore.setUser(profileData)
 
-    const membershipData: Membership[] = membershipResponse.data
-    memberships.value = membershipData
+    if (profileData.roleId === 1) {
+      router.replace('/admin')
+      return
+    }
+
+    const [membershipResponse, transactionResponse] = await Promise.all([
+      api.get('/memberships/my-status'),
+      api.get('/transactions'),
+    ])
+
+    memberships.value = membershipResponse.data as Membership[]
     transactions.value = transactionResponse.data as UserTransaction[]
   } catch (error: any) {
     // --- 3. ERROR HANDLING AXIOS ---
@@ -130,12 +133,12 @@ onMounted(async () => {
           <div class="shimmer line mid"></div>
         </div>
       </div>
-      <div class="membership-section card skeleton">
+      <div v-if="!isAdmin" class="membership-section card skeleton">
         <div class="shimmer line wide"></div>
         <div class="shimmer line mid"></div>
         <div class="shimmer line mid"></div>
       </div>
-      <div class="transactions card skeleton">
+      <div v-if="!isAdmin" class="transactions card skeleton">
         <div class="shimmer line wide"></div>
         <div class="shimmer line mid"></div>
       </div>
@@ -144,32 +147,40 @@ onMounted(async () => {
     <div v-else-if="profile" class="hero card">
       <div class="avatar">{{ initial }}</div>
       <div class="hero-info">
-        <div class="pill">Member</div>
+        <div class="pill">{{ isAdmin ? 'Admin' : 'Member' }}</div>
         <h2>{{ profile.name }}</h2>
         <p class="muted">{{ profile.email }}</p>
         <div class="chips">
           <span class="chip">Telepon: {{ profile.phone || '-' }}</span>
           <span class="chip">Sejak {{ formatDate(profile.createdAt) }}</span>
-          <span v-if="activeMembership" class="chip status-chip">
+          <span v-if="!isAdmin && activeMembership" class="chip status-chip">
             Status: {{ formatStatus(activeMembership.status) }}
           </span>
         </div>
       </div>
       <div class="hero-stat">
-        <p class="label">Membership aktif</p>
-        <template v-if="activeMembership">
-          <strong>{{ activeMembership.package.name }}</strong>
-          <small>{{ formatDate(activeMembership.startDate) }} - {{ formatDate(activeMembership.endDate) }}</small>
+        <template v-if="!isAdmin">
+          <p class="label">Membership aktif</p>
+          <template v-if="activeMembership">
+            <strong>{{ activeMembership.package.name }}</strong>
+            <small>{{ formatDate(activeMembership.startDate) }} - {{ formatDate(activeMembership.endDate) }}</small>
+          </template>
+          <template v-else>
+            <strong>Belum ada</strong>
+            <small>Tambah paket untuk mulai aktif.</small>
+          </template>
+          <RouterLink class="ghost-btn" to="/packages">Tambah Paket</RouterLink>
         </template>
         <template v-else>
-          <strong>Belum ada</strong>
-          <small>Tambah paket untuk mulai aktif.</small>
+          <p class="label">Akses admin</p>
+          <strong>Role: Admin</strong>
+          <small>Akun admin tidak menggunakan membership.</small>
+          <RouterLink class="ghost-btn" to="/admin">Buka Dashboard Admin</RouterLink>
         </template>
-        <RouterLink class="ghost-btn" to="/packages">Tambah Paket</RouterLink>
       </div>
     </div>
 
-    <div v-if="profile" class="membership-section card">
+    <div v-if="profile && !isAdmin" class="membership-section card">
       <div class="section-head">
         <h3>Riwayat Membership</h3>
         <RouterLink class="ghost-btn" to="/packages">Lihat Paket</RouterLink>
@@ -206,7 +217,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="profile" class="transactions card">
+    <div v-if="profile && !isAdmin" class="transactions card">
       <div class="section-head">
         <h3>Transaksi Terbaru</h3>
         <RouterLink class="ghost-btn" to="/packages">Lanjutkan Bayar</RouterLink>

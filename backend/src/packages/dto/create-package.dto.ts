@@ -2,6 +2,7 @@
 
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  IsDateString,
   IsBoolean,
   IsInt,
   IsJSON,
@@ -29,6 +30,17 @@ export class CreatePackageDto {
   @IsNotEmpty()
   price: number;
 
+  @ApiProperty({ example: 1200000, required: false })
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  promoPrice?: number;
+
+  @ApiProperty({ example: '2025-12-31', required: false })
+  @IsDateString()
+  @IsOptional()
+  promoExpiresAt?: string;
+
   @ApiProperty({ example: 365 })
   @IsInt()
   @Min(1)
@@ -39,6 +51,11 @@ export class CreatePackageDto {
   @IsJSON() // Pastikan mengirim string JSON yang valid
   @IsOptional()
   features?: string;
+
+  @ApiProperty({ example: '["Personal trainer 4x", "Locker"]', required: false })
+  @IsJSON()
+  @IsOptional()
+  bundleItems?: string;
 
   @ApiProperty({ example: true, default: true })
   @IsBoolean()
