@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
@@ -21,6 +22,8 @@ interface AdminPackage {
   durationDays: number
   isActive: boolean
   createdAt: string
+  updatedAt?: string
+  features?: unknown
 }
 
 type PaymentStatus = 'pending' | 'success' | 'failed'
@@ -65,23 +68,6 @@ const loading = ref(true)
 const error = ref('')
 const message = ref('')
 
-const packageActionId = ref<number | null>(null)
-const userActionId = ref<number | null>(null)
-const savingUser = ref(false)
-const userFormError = ref('')
-
-const emptyUserForm = () => ({
-  id: null as number | null,
-  name: '',
-  email: '',
-  phone: '',
-  roleId: 2,
-  password: '',
-  isActive: true,
-})
-
-const userForm = ref(emptyUserForm())
-
 const formatCurrency = (value: string | number) => {
   const amount = typeof value === 'number' ? value : Number(value || 0)
   return `Rp${amount.toLocaleString('id-ID')}`
@@ -106,7 +92,6 @@ const failedCount = computed(() => transactions.value.filter((t) => t.status ===
 const activePackageCount = computed(() => packages.value.filter((p) => p.isActive).length)
 const latestUsers = computed(() => users.value.slice(0, 6))
 const latestTransactions = computed(() => transactions.value.slice(0, 8))
-const isEditingUser = computed(() => !!userForm.value.id)
 
 const fetchAdminData = async () => {
   error.value = ''
@@ -130,114 +115,6 @@ const fetchAdminData = async () => {
     loading.value = false
   }
 }
-
-const togglePackageStatus = async (pkg: AdminPackage) => {
-  packageActionId.value = pkg.id
-  message.value = ''
-  error.value = ''
-  try {
-    const res = await api.put(`/admin/packages/${pkg.id}`, {
-      isActive: !pkg.isActive,
-    })
-    const updated = res?.data || { ...pkg, isActive: !pkg.isActive }
-    packages.value = packages.value.map((p) => (p.id === pkg.id ? { ...p, ...updated } : p))
-    message.value = `Status paket "${pkg.name}" diperbarui.`
-  } catch (err: any) {
-    error.value =
-      err?.response?.data?.message ||
-      `Gagal mengubah status paket ${pkg.name}. Coba lagi atau cek API.`
-  } finally {
-    packageActionId.value = null
-  }
-}
-
-const startEditUser = (user: AdminUser) => {
-  userForm.value = {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone || '',
-    roleId: user.roleId,
-    password: '',
-    isActive: user.isActive ?? true,
-  }
-  userFormError.value = ''
-  message.value = ''
-}
-
-const resetUserForm = () => {
-  userForm.value = emptyUserForm()
-  userFormError.value = ''
-  message.value = ''
-  error.value = ''
-}
-
-const toggleUserActive = async (user: AdminUser) => {
-  userActionId.value = user.id
-  userFormError.value = ''
-  message.value = ''
-  error.value = ''
-  try {
-    const res = await api.put(`/admin/users/${user.id}`, { isActive: !user.isActive })
-    const updated = res?.data || { ...user, isActive: !user.isActive }
-    users.value = users.value.map((u) => (u.id === user.id ? { ...u, ...updated } : u))
-    message.value = `Status user ${user.name} diperbarui.`
-  } catch (err: any) {
-    userFormError.value =
-      err?.response?.data?.message ||
-      `Gagal mengubah status user ${user.name}. Pastikan API tersedia.`
-  } finally {
-    userActionId.value = null
-  }
-}
-
-const submitUserForm = async () => {
-  userFormError.value = ''
-  message.value = ''
-  error.value = ''
-  const payload: any = {
-    name: userForm.value.name,
-    phone: userForm.value.phone || undefined,
-    roleId: userForm.value.roleId || 2,
-  }
-
-  if (!userForm.value.name || !userForm.value.email) {
-    userFormError.value = 'Nama dan email harus diisi.'
-    return
-  }
-
-  savingUser.value = true
-  try {
-    let successMessage = ''
-    if (isEditingUser.value) {
-      payload.isActive = userForm.value.isActive
-      await api.put(`/admin/users/${userForm.value.id}`, payload)
-      successMessage = 'Data user diperbarui.'
-    } else {
-      if (!userForm.value.password || userForm.value.password.length < 8) {
-        userFormError.value = 'Password minimal 8 karakter.'
-        savingUser.value = false
-        return
-      }
-      await api.post('/admin/users', {
-        ...payload,
-        email: userForm.value.email,
-        password: userForm.value.password,
-      })
-      successMessage = 'User baru berhasil dibuat.'
-    }
-
-    await fetchAdminData()
-    resetUserForm()
-    message.value = successMessage
-  } catch (err: any) {
-    userFormError.value = err?.response?.data?.message || 'Gagal menyimpan data user.'
-  } finally {
-    savingUser.value = false
-  }
-}
-
-const roleLabel = (roleId: number) => (roleId === 1 ? 'Admin' : 'Member')
 
 onMounted(fetchAdminData)
 </script>
@@ -322,7 +199,7 @@ onMounted(fetchAdminData)
       </section>
 
       <section class="panel-grid">
-        <div class="panel card">
+        <div class="panel card" id="transactions">
           <div class="section-head">
             <div>
               <p class="eyebrow">Transaksi terbaru</p>
@@ -371,7 +248,7 @@ onMounted(fetchAdminData)
           </div>
         </div>
 
-        <div class="panel card">
+        <div class="panel card" id="latest-users">
           <div class="section-head">
             <div>
               <p class="eyebrow">Pengguna terbaru</p>
@@ -394,169 +271,25 @@ onMounted(fetchAdminData)
         </div>
       </section>
 
-      <section class="panel card">
+      <section class="panel card package-cta">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Katalog paket</p>
-            <h3>Monitoring paket membership</h3>
+            <p class="eyebrow">Detail paket</p>
+            <h3>Kelola paket lebih rinci</h3>
+            <p class="muted">Tambah, edit, nonaktifkan, atau hapus paket di halaman khusus.</p>
           </div>
-        </div>
-        <div class="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Nama</th>
-                <th>Harga</th>
-                <th>Durasi</th>
-                <th>Status</th>
-                <th>Dibuat</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="pkg in packages" :key="pkg.id">
-                <td>{{ pkg.name }}</td>
-                <td>{{ formatCurrency(pkg.price) }}</td>
-                <td>{{ pkg.durationDays }} hari</td>
-                <td>
-                  <span :class="['status', pkg.isActive ? 'success' : 'failed']">
-                    {{ pkg.isActive ? 'Aktif' : 'Nonaktif' }}
-                  </span>
-                </td>
-                <td>{{ formatDateTime(pkg.createdAt) }}</td>
-                <td>
-                  <button
-                    type="button"
-                    class="ghost-btn"
-                    :disabled="packageActionId === pkg.id"
-                    @click="togglePackageStatus(pkg)"
-                  >
-                    {{ packageActionId === pkg.id ? 'Menyimpan...' : pkg.isActive ? 'Nonaktifkan' : 'Aktifkan' }}
-                  </button>
-                </td>
-              </tr>
-              <tr v-if="!packages.length">
-                <td colspan="6" class="muted">Belum ada paket di katalog.</td>
-              </tr>
-            </tbody>
-          </table>
+          <RouterLink to="/admin-packages" class="ghost-btn">Buka halaman paket</RouterLink>
         </div>
       </section>
 
-      <section class="panel card management">
+      <section class="panel card user-cta">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Kelola pengguna</p>
-            <h3>CRUD member & admin</h3>
+            <p class="eyebrow">Detail pengguna</p>
+            <h3>Kelola member & admin</h3>
+            <p class="muted">CRUD pengguna tersedia di halaman khusus admin pengguna.</p>
           </div>
-          <button v-if="isEditingUser" type="button" class="ghost-btn" @click="resetUserForm">
-            Batalkan edit
-          </button>
-        </div>
-
-        <div class="management-grid">
-          <form class="user-form" @submit.prevent="submitUserForm">
-            <div class="form-grid">
-              <label class="form-field">
-                <span>Nama*</span>
-                <input v-model="userForm.name" type="text" placeholder="Nama lengkap" required />
-              </label>
-              <label class="form-field">
-                <span>Email*</span>
-                <input
-                  v-model="userForm.email"
-                  type="email"
-                  placeholder="email@contoh.com"
-                  :readonly="isEditingUser"
-                  required
-                />
-              </label>
-              <label class="form-field">
-                <span>Telepon</span>
-                <input v-model="userForm.phone" type="tel" placeholder="08xxxxxxxx" />
-              </label>
-              <label class="form-field">
-                <span>Role</span>
-                <select v-model.number="userForm.roleId">
-                  <option :value="1">Admin</option>
-                  <option :value="2">Member</option>
-                </select>
-              </label>
-              <label v-if="!isEditingUser" class="form-field">
-                <span>Password*</span>
-                <input
-                  v-model="userForm.password"
-                  type="password"
-                  placeholder="Min. 8 karakter"
-                  minlength="8"
-                  required
-                />
-              </label>
-              <label v-else class="form-field checkbox">
-                <input v-model="userForm.isActive" type="checkbox" />
-                <span>Aktifkan akun</span>
-              </label>
-            </div>
-            <div class="form-actions">
-              <button type="submit" :disabled="savingUser">
-                {{ savingUser ? 'Menyimpan...' : isEditingUser ? 'Perbarui User' : 'Tambah User' }}
-              </button>
-              <button type="button" class="ghost-btn" @click="resetUserForm">Reset</button>
-            </div>
-            <p v-if="userFormError" class="form-error">{{ userFormError }}</p>
-          </form>
-
-          <div class="table-wrapper user-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Nama</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Dibuat</th>
-                  <th>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="user in users" :key="user.id">
-                  <td>{{ user.name }}</td>
-                  <td class="mono">{{ user.email }}</td>
-                  <td>
-                    <span class="badge" :class="{ admin: user.roleId === 1 }">{{ roleLabel(user.roleId) }}</span>
-                  </td>
-                  <td>
-                    <span :class="['status', user.isActive ? 'success' : 'failed']">
-                      {{ user.isActive ? 'Aktif' : 'Nonaktif' }}
-                    </span>
-                  </td>
-                  <td>{{ formatDateTime(user.createdAt) }}</td>
-                  <td>
-                    <div class="table-actions">
-                      <button type="button" class="ghost-btn" @click="startEditUser(user)">Edit</button>
-                      <button
-                        type="button"
-                        class="ghost-btn danger"
-                        :disabled="userActionId === user.id"
-                        @click="toggleUserActive(user)"
-                      >
-                        {{
-                          userActionId === user.id
-                            ? 'Memproses...'
-                            : user.isActive
-                              ? 'Nonaktifkan'
-                              : 'Aktifkan'
-                        }}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                <tr v-if="!users.length">
-                  <td colspan="6" class="muted">Belum ada data pengguna.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <RouterLink to="/admin-users" class="ghost-btn">Buka halaman pengguna</RouterLink>
         </div>
       </section>
     </template>
@@ -711,6 +444,11 @@ onMounted(fetchAdminData)
 
 .table-wrapper {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrapper.wide table {
+  min-width: 760px;
 }
 
 table {
@@ -771,6 +509,15 @@ th {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.list-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.list-wrapper .list {
+  min-width: 420px;
 }
 
 .list li {
@@ -878,13 +625,18 @@ th {
 }
 
 .form-field input,
-.form-field select {
+.form-field select,
+.form-field textarea {
   width: 100%;
   padding: 0.55rem 0.65rem;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+}
+
+.form-field.full {
+  grid-column: 1 / -1;
 }
 
 .form-field input:read-only {
@@ -908,6 +660,28 @@ th {
   margin: 0.25rem 0 0;
 }
 
+.package-management {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.package-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 1rem;
+}
+
+.package-form {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.9rem;
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .user-table {
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -917,6 +691,10 @@ th {
   display: flex;
   gap: 0.4rem;
   flex-wrap: wrap;
+}
+
+.table-actions.packages {
+  flex-wrap: nowrap;
 }
 
 .ghost-btn.danger {
@@ -934,6 +712,10 @@ th {
   }
 
   .management-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .package-grid {
     grid-template-columns: 1fr;
   }
 }

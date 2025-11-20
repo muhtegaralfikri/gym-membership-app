@@ -31,6 +31,7 @@ const handleLogout = () => {
 
 const isDark = computed(() => theme.value === 'dark')
 const menuOpen = ref(false)
+const adminMenuOpen = ref(false)
 
 const toggleMenu = () => {
   menuOpen.value = !menuOpen.value
@@ -38,6 +39,20 @@ const toggleMenu = () => {
 
 const closeMenu = () => {
   menuOpen.value = false
+  adminMenuOpen.value = false
+}
+
+const toggleAdminMenu = () => {
+  adminMenuOpen.value = !adminMenuOpen.value
+}
+
+const closeAdminMenu = () => {
+  adminMenuOpen.value = false
+}
+
+const handleAdminNav = () => {
+  closeAdminMenu()
+  closeMenu()
 }
 
 watch(
@@ -70,7 +85,17 @@ watch(
         <RouterLink to="/packages" @click="closeMenu">Lihat Paket</RouterLink>
 
         <template v-if="authStore.isAuthenticated">
-          <RouterLink v-if="authStore.isAdmin" to="/admin" @click="closeMenu">Admin</RouterLink>
+          <div v-if="authStore.isAdmin" class="admin-menu" :class="{ open: adminMenuOpen }">
+            <button type="button" class="admin-toggle" @click="toggleAdminMenu">
+              Admin
+              <span class="chevron" :class="{ open: adminMenuOpen }">▼</span>
+            </button>
+            <div v-if="adminMenuOpen" class="admin-dropdown">
+              <RouterLink to="/admin" @click="handleAdminNav">Dashboard</RouterLink>
+              <RouterLink to="/admin-packages" @click="handleAdminNav">Kelola paket</RouterLink>
+              <RouterLink to="/admin-users" @click="handleAdminNav">Kelola pengguna</RouterLink>
+            </div>
+          </div>
           <RouterLink to="/profile" @click="closeMenu">Profil Saya</RouterLink>
           <a @click="() => { handleLogout(); closeMenu(); }" class="logout-link">Logout</a>
         </template>
@@ -113,6 +138,55 @@ watch(
   display: flex;
   gap: 1rem;
   align-items: center;
+}
+
+.admin-menu {
+  position: relative;
+}
+
+.admin-toggle {
+  background: var(--surface-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 0.45rem 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  box-shadow: none;
+}
+
+.chevron {
+  font-size: 0.8rem;
+  transition: transform 0.15s ease;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
+}
+
+.admin-dropdown {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  z-index: 10;
+}
+
+.admin-dropdown a {
+  padding: 0.55rem 0.75rem;
+  color: var(--muted);
+}
+
+.admin-dropdown a:hover,
+.admin-dropdown a.router-link-exact-active {
+  color: var(--primary);
+  background: var(--primary-contrast);
 }
 
 .navbar-links a {
@@ -202,6 +276,14 @@ watch(
   }
   .burger {
     display: inline-flex;
+  }
+
+  .admin-dropdown {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none;
   }
 }
 </style>
