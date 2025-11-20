@@ -133,6 +133,13 @@ const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mu
   background: var(--surface-alt);
   color: var(--text);
 }
+.solid:hover {
+  filter: brightness(0.95);
+}
+.ghost:hover {
+  background: var(--primary-contrast);
+  color: var(--primary);
+}
 .trust {
   margin-top: 1rem;
   display: flex;

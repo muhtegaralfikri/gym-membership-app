@@ -254,6 +254,13 @@ const handleBuy = async (packageId: number) => {
   background: var(--surface-alt);
   color: var(--text);
 }
+.hero-cta .solid:hover {
+  filter: brightness(0.95);
+}
+.hero-cta .ghost:hover {
+  background: var(--primary-contrast);
+  color: var(--primary);
+}
 
 .hero-art {
   position: relative;
@@ -410,6 +417,9 @@ const handleBuy = async (packageId: number) => {
 
 button {
   align-self: flex-start;
+}
+.actions button:hover {
+  filter: brightness(0.96);
 }
 
 @media (max-width: 900px) {
