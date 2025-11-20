@@ -5,12 +5,14 @@ import {
   InternalServerErrorException,
   Logger, // 1. Import Logger
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PackagesService } from 'src/packages/packages.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { v4 as uuidv4 } from 'uuid';
 import { ConfigService } from '@nestjs/config';
+import { PromosService } from 'src/promos/promos.service';
 
 // 2. Import Midtrans menggunakan 'require'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -29,6 +31,7 @@ export class TransactionsService {
     private prisma: PrismaService,
     private packagesService: PackagesService,
     private configService: ConfigService,
+    private promosService: PromosService,
   ) {
     // 5. Validasi kunci .env saat aplikasi start
     const serverKey = this.configService.get<string>('MIDTRANS_SERVER_KEY');
@@ -55,7 +58,7 @@ export class TransactionsService {
   }
 
   async create(createTransactionDto: CreateTransactionDto, userId: number) {
-    const { packageId } = createTransactionDto;
+    const { packageId, promoCode } = createTransactionDto;
     const pkg = await this.packagesService.findById(packageId);
 
     if (!pkg || !pkg.isActive) {
@@ -67,8 +70,29 @@ export class TransactionsService {
       throw new NotFoundException('User not found');
     }
 
+    const basePrice = this.promosService.getBasePrice(pkg as any);
+    let discountAmount = 0;
+    let appliedPromoId: number | undefined;
+    let finalAmount = basePrice;
+
+    if (promoCode) {
+      const { discount, finalAmount: computedFinal, promo } = await this.promosService.validateAndCompute(
+        promoCode,
+        pkg as any,
+      );
+      discountAmount = discount;
+      appliedPromoId = promo.id;
+      finalAmount = computedFinal;
+      if (finalAmount <= 0) {
+        throw new BadRequestException('Total setelah promo tidak valid.');
+      }
+    }
+
     // Midtrans expects integer gross_amount (no decimal for IDR)
-    const grossAmount = Math.round(Number(pkg.price.toNumber()));
+    const grossAmount = Math.round(Number(finalAmount));
+    // Samakan nilai yang disimpan dengan nominal yang dikirim ke Midtrans
+    const savedAmount = grossAmount;
+    discountAmount = Math.max(0, Number(basePrice) - savedAmount);
 
     const orderId = uuidv4();
 
@@ -80,9 +104,9 @@ export class TransactionsService {
       item_details: [
         {
           id: `PKG-${pkg.id}`,
-          price: pkg.price.toNumber(),
+          price: grossAmount,
           quantity: 1,
-          name: pkg.name,
+          name: promoCode ? `${pkg.name} (promo)` : pkg.name,
         },
       ],
       customer_details: {
@@ -104,15 +128,21 @@ export class TransactionsService {
     };
 
     try {
-      const newTransaction = await this.prisma.transaction.create({
-        data: {
-          orderId: orderId,
-          amount: pkg.price,
-          status: 'pending',
-          paymentGateway: 'midtrans',
-          user: { connect: { id: userId } },
-          package: { connect: { id: packageId } },
-        },
+      const data: any = {
+        orderId: orderId,
+        amount: savedAmount,
+        discountAmount: discountAmount,
+        status: 'pending',
+        paymentGateway: 'midtrans',
+        user: { connect: { id: userId } },
+        package: { connect: { id: packageId } },
+      };
+      if (appliedPromoId) {
+        data.promoCodeId = appliedPromoId;
+      }
+
+      const newTransaction = await (this.prisma as any).transaction.create({
+        data,
       });
 
       // 7. Nonaktifkan linter untuk 'unsafe call' dan 'unsafe member access'
@@ -127,6 +157,8 @@ export class TransactionsService {
         message: 'Transaction created successfully.',
         orderId: newTransaction.orderId,
         paymentToken: paymentToken,
+        finalAmount,
+        discountAmount,
       };
     } catch (error) {
       console.error(error);

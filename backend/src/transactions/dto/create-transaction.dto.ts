@@ -1,7 +1,7 @@
 // src/transactions/dto/create-transaction.dto.ts
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateTransactionDto {
   @ApiProperty({
@@ -11,4 +11,9 @@ export class CreateTransactionDto {
   @IsInt()
   @IsNotEmpty()
   packageId: number;
+
+  @ApiProperty({ description: 'Optional promo code', required: false, example: 'GYM50' })
+  @IsString()
+  @IsOptional()
+  promoCode?: string;
 }
