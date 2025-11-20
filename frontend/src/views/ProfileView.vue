@@ -201,7 +201,7 @@ onMounted(async () => {
           <div class="tx-status">
             <span :class="['pill', 'small', tx.status]">{{ tx.status }}</span>
             <p v-if="tx.status === 'pending'" class="tip">
-              Menunggu pembayaran. Buka tautan Snap terbaru atau hubungi admin.
+              Menunggu pembayaran atau review bank (challenge). Buka tautan Snap terbaru atau hubungi admin.
             </p>
             <p v-else-if="tx.status === 'failed'" class="tip">
               Gagal/berakhir. Buat transaksi baru jika masih ingin lanjut.

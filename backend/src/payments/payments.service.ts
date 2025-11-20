@@ -9,16 +9,12 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MembershipsService } from 'src/memberships/memberships.service';
 import { PaymentNotificationDto } from './dto/payment-notification.dto';
-import { PaymentStatus, Prisma } from '@prisma/client';
+import { MembershipStatus, PaymentStatus, Prisma } from '@prisma/client';
 import { computeMidtransSignature } from './utils/midtrans-signature';
+import { PENDING_TTL_MS } from './constants';
 
 @Injectable()
 export class PaymentsService {
-  /**
-   * Batas waktu transaksi pending sebelum dianggap gagal (ms)
-   */
-  private readonly pendingTtlMs = 24 * 60 * 60 * 1000; // 24 jam
-
   constructor(
     private prisma: PrismaService,
     private membershipsService: MembershipsService,
@@ -79,7 +75,7 @@ export class PaymentsService {
     // Tandai gagal jika pending terlalu lama
     const isExpiredPending =
       transaction.status === PaymentStatus.pending &&
-      new Date().getTime() - transaction.createdAt.getTime() > this.pendingTtlMs &&
+      new Date().getTime() - transaction.createdAt.getTime() > PENDING_TTL_MS &&
       transaction_status === 'pending';
 
     if (isExpiredPending) {
@@ -179,5 +175,56 @@ export class PaymentsService {
     }
 
     return { message: 'Unhandled transaction status.' };
+  }
+
+  /**
+   * Admin: tandai transaksi sebagai refund/void dan nonaktifkan membership terkait.
+   */
+  async refundTransaction(transactionId: number) {
+    const transaction = await this.prisma.transaction.findUnique({
+      where: { id: transactionId },
+      include: { membership: true },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transaction not found');
+    }
+
+    if (transaction.status === PaymentStatus.failed) {
+      return { message: 'Transaction already failed.' };
+    }
+
+    const now = new Date();
+
+    const result = await this.prisma.$transaction(async (prisma) => {
+      const updatedTx = await prisma.transaction.update({
+        where: { id: transactionId },
+        data: {
+          status: PaymentStatus.failed,
+          paymentGatewayResponse: {
+            ...(transaction.paymentGatewayResponse as Prisma.InputJsonObject),
+            adminAction: 'refund',
+            adminActionAt: now.toISOString(),
+          } as Prisma.InputJsonValue,
+        },
+      });
+
+      if (transaction.membership) {
+        await prisma.userMembership.update({
+          where: { id: transaction.membership.id },
+          data: {
+            status: MembershipStatus.expired,
+            endDate: now,
+          },
+        });
+      }
+
+      return updatedTx;
+    });
+
+    return {
+      message: 'Transaction refunded/voided and membership updated.',
+      transactionId: result.orderId,
+    };
   }
 }
