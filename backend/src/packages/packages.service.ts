@@ -75,4 +75,13 @@ export class PackagesService {
       data,
     });
   }
+
+  /**
+   * (Admin) Menghapus paket
+   */
+  async remove(id: number) {
+    return this.prisma.package.delete({
+      where: { id },
+    });
+  }
 }

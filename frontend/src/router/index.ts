@@ -11,6 +11,8 @@ import ProfileView from '../views/ProfileView.vue'
 import PackagesView from '../views/PackagesView.vue'
 import HomeView from '../views/HomeView.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
+import AdminPackagesView from '../views/AdminPackagesView.vue'
+import AdminUsersView from '../views/AdminUsersView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -43,6 +45,18 @@ const router = createRouter({
       component: AdminDashboard,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
+    {
+      path: '/admin-packages',
+      name: 'admin-packages',
+      component: AdminPackagesView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin-users',
+      name: 'admin-users',
+      component: AdminUsersView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
     // 3. (Opsional) Kita bisa tambahkan rute '/packages'
     //    jika ingin punya URL spesifik selain '/'
     {
@@ -51,6 +65,13 @@ const router = createRouter({
       component: PackagesView,
     },
   ],
+  scrollBehavior(to, _from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' }
+    }
+    return { top: 0 }
+  },
 })
 
 // Global Navigation Guard (Tidak berubah)

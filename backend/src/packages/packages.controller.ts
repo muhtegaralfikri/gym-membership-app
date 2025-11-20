@@ -8,6 +8,7 @@ import {
   Put,
   Param,
   ParseIntPipe,
+  Delete,
   UseGuards,
 } from '@nestjs/common';
 import { PackagesService } from './packages.service';
@@ -19,6 +20,7 @@ import {
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiUnauthorizedResponse, // <-- 1. Import
+  ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
@@ -93,5 +95,22 @@ export class PackagesController {
     @Body() updatePackageDto: UpdatePackageDto,
   ) {
     return this.packagesService.update(id, updatePackageDto);
+  }
+
+  /**
+   * (Admin) Menghapus paket
+   * DELETE /admin/packages/:id
+   */
+  @Delete('admin/packages/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a package (Admin Only)' })
+  @ApiOkResponse({ description: 'Package deleted successfully.' })
+  @ApiForbiddenResponse({ description: 'Forbidden.' })
+  @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
+  @ApiNotFoundResponse({ description: 'Package not found.' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.packagesService.remove(id);
   }
 }
