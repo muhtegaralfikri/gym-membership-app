@@ -24,7 +24,6 @@ onMounted(async () => {
   if (!auth.isAuthenticated) {
     statusTitle.value = 'Belum login'
     statusSubtitle.value = 'Masuk untuk melihat status membership kamu.'
-    trustCopy.value = 'Masuk untuk cek progres membership.'
     return
   }
 
@@ -68,6 +67,8 @@ onMounted(async () => {
     metrics.value = metricsResponse.data
     if (metrics.value.activeMembers > 0) {
       trustCopy.value = `Dipakai oleh ${metrics.value.activeMembers} member aktif${metrics.value.activeInstructors ? ' & instruktur' : ''}.`
+    } else {
+      trustCopy.value = 'Sudah dipakai instruktur & member aktif'
     }
   } catch (_err) {
     // fallback to existing copy
