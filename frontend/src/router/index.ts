@@ -2,6 +2,7 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import api from '@/services/api'
 
 import RegisterView from '../views/RegisterView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -44,14 +45,24 @@ const router = createRouter({
 })
 
 // Global Navigation Guard (Tidak berubah)
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
+
+  try {
+    if (auth.isAuthenticated && !auth.user) {
+      const profileResponse = await api.get('/users/profile')
+      auth.setUser(profileResponse.data)
+    }
+  } catch (_err) {
+    // handled by interceptor
+  }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     next({ name: 'login' })
-  } else {
-    next()
+    return
   }
+
+  next()
 })
 
 export default router

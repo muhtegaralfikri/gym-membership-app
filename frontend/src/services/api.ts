@@ -2,6 +2,7 @@
 
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 
 // 1. Ambil URL dasar API kita dari environment variables
 //    Vite akan otomatis memilih file .env yang tepat (dev atau prod)
@@ -30,6 +31,19 @@ api.interceptors.request.use(
   },
   (error) => {
     // Tangani error jika ada
+    return Promise.reject(error)
+  },
+)
+
+// Response interceptor: logout on 401 and redirect to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const authStore = useAuthStore()
+    if (error.response?.status === 401 && authStore.isAuthenticated) {
+      authStore.logout()
+      router.push({ name: 'login' })
+    }
     return Promise.reject(error)
   },
 )
