@@ -70,6 +70,7 @@ watch(
         <RouterLink to="/packages" @click="closeMenu">Lihat Paket</RouterLink>
 
         <template v-if="authStore.isAuthenticated">
+          <RouterLink v-if="authStore.isAdmin" to="/admin" @click="closeMenu">Admin</RouterLink>
           <RouterLink to="/profile" @click="closeMenu">Profil Saya</RouterLink>
           <a @click="() => { handleLogout(); closeMenu(); }" class="logout-link">Logout</a>
         </template>

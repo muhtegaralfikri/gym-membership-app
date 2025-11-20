@@ -75,10 +75,10 @@ async function main() {
   });
 
   const package3 = await prisma.package.upsert({
-    where: { name: 'Gold Member (Annual)' },
+    where: { name: 'Gold Member' },
     update: {},
     create: {
-      name: 'Gold Member (Annual)',
+      name: 'Gold Member',
       description: 'Akses gym selama 1 tahun penuh.',
       price: 1500000.0,
       durationDays: 365,

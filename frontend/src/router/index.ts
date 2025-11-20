@@ -10,6 +10,7 @@ import ProfileView from '../views/ProfileView.vue'
 // 1. Import PackagesView
 import PackagesView from '../views/PackagesView.vue'
 import HomeView from '../views/HomeView.vue'
+import AdminDashboard from '../views/AdminDashboard.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -36,6 +37,12 @@ const router = createRouter({
       component: ProfileView,
       meta: { requiresAuth: true },
     },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: AdminDashboard,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
     // 3. (Opsional) Kita bisa tambahkan rute '/packages'
     //    jika ingin punya URL spesifik selain '/'
     {
@@ -51,16 +58,21 @@ router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
 
   try {
-    if (auth.isAuthenticated && !auth.user) {
-      const profileResponse = await api.get('/users/profile')
-      auth.setUser(profileResponse.data)
-    }
-  } catch (_err) {
-    // handled by interceptor
+  if (auth.isAuthenticated && !auth.user) {
+    const profileResponse = await api.get('/users/profile')
+    auth.setUser(profileResponse.data)
   }
+} catch (_err) {
+  // handled by interceptor
+}
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     next({ name: 'login' })
+    return
+  }
+
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    next({ name: auth.isAuthenticated ? 'home' : 'login' })
     return
   }
 
