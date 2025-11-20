@@ -7,12 +7,14 @@ import api from '@/services/api' // <-- 1. Import 'api' kita
 const email = ref('')
 const password = ref('')
 const message = ref('')
+const loading = ref(false)
 
 const authStore = useAuthStore()
 const router = useRouter()
 
 const handleLogin = async () => {
   message.value = ''
+  loading.value = true
   try {
     // --- 2. GANTI FETCH DENGAN API.POST ---
     const response = await api.post('/auth/login', {
@@ -41,6 +43,8 @@ const handleLogin = async () => {
     } else {
       message.value = 'Terjadi kesalahan jaringan. Coba lagi nanti.'
     }
+  } finally {
+    loading.value = false
   }
 }
 </script>
@@ -62,7 +66,10 @@ const handleLogin = async () => {
           <input type="password" id="password" v-model="password" required placeholder="••••••••" />
         </div>
         
-        <button type="submit">Login</button>
+      <button type="submit" :disabled="loading">
+        <span v-if="loading">Memproses...</span>
+        <span v-else>Login</span>
+      </button>
       </form>
 
       <p v-if="message" class="message">{{ message }}</p>
@@ -130,6 +137,10 @@ button {
   width: 100%;
   padding: 0.9rem;
 }
+button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
 .message {
   margin-top: 1rem;
   padding: 0.75rem 1rem;
@@ -146,5 +157,15 @@ button {
 }
 .redirect a {
   color: var(--primary);
+}
+
+.login-card {
+  width: min(460px, 100%);
+}
+
+@media (max-width: 600px) {
+  .login-card {
+    padding: 1.5rem;
+  }
 }
 </style>
