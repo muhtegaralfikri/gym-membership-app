@@ -46,44 +46,73 @@ const handleRegister = async () => {
 
 <template>
   <div class="register-page">
-    <h2>Registrasi Member Baru</h2>
-    
-    <form @submit.prevent="handleRegister">
-      <div class="form-group">
-        <label for="name">Nama Lengkap:</label>
-        <input type="text" id="name" v-model="name" required />
-      </div>
-      <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" v-model="email" required />
-      </div>
-      <div class="form-group">
-        <label for="password">Password (min. 8 karakter):</label>
-        <input type="password" id="password" v-model="password" required />
-      </div>
-      <div class="form-group">
-        <label for="phone">No. Telepon (Opsional):</label>
-        <input type="tel" id="phone" v-model="phone" />
-      </div>
-      <button type="submit">Daftar</button>
-    </form>
+    <div class="register-card">
+      <h2>Daftar Member Baru</h2>
+      <p class="sub">Mulai kelola latihan, pembayaran, dan membership di satu aplikasi.</p>
+      
+      <form @submit.prevent="handleRegister">
+        <div class="form-group">
+          <label for="name">Nama Lengkap</label>
+          <input type="text" id="name" v-model="name" required placeholder="Nama sesuai KTP" />
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" v-model="email" required placeholder="nama@contoh.com" />
+        </div>
+        <div class="form-group">
+          <label for="password">Password (min. 8 karakter)</label>
+          <input type="password" id="password" v-model="password" required placeholder="••••••••" />
+        </div>
+        <div class="form-group">
+          <label for="phone">No. Telepon (Opsional)</label>
+          <input type="tel" id="phone" v-model="phone" placeholder="0812xxxxxxx" />
+        </div>
+        <button type="submit">Daftar</button>
+      </form>
 
-    <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="message">{{ message }}</p>
 
-    <p>
-      Sudah punya akun? <RouterLink to="/login">Login di sini</RouterLink>
-    </p>
+      <p class="redirect">
+        Sudah punya akun? <RouterLink to="/login">Login di sini</RouterLink>
+      </p>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* Style tidak berubah */
 .register-page {
-  max-width: 400px;
-  margin: 2rem auto;
-  padding: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.register-page::before {
+  content: '';
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(242, 108, 45, 0.14), transparent 45%);
+  filter: blur(12px);
+  transform: translate(-30%, -20%);
+  z-index: 0;
+}
+.register-card {
+  width: min(520px, 100%);
+  padding: 2rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  position: relative;
+  z-index: 1;
+}
+.register-card h2 {
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.01em;
+}
+.sub {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
 }
 .form-group {
   margin-bottom: 1rem;
@@ -91,23 +120,36 @@ const handleRegister = async () => {
 }
 .form-group label {
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
 }
 .form-group input {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.65rem 0.75rem;
   box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
 }
 button {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.9rem;
 }
 .message {
   margin-top: 1rem;
-  color: green;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--primary-contrast);
+  color: var(--text);
 }
-/* Style untuk error (bisa kita ubah nanti) */
 .message:not(:empty):not(:containing('sukses')) {
-  color: red;
+  background: #ffe7e7;
+  color: #c62828;
+}
+.redirect {
+  margin-top: 1.25rem;
+}
+.redirect a {
+  color: var(--primary);
 }
 </style>

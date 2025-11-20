@@ -102,7 +102,7 @@ onMounted(async () => {
       <h2>Status Membership Saya</h2>
       <div v-if="!memberships.length">
         <p>Anda belum memiliki paket membership aktif.</p>
-        <RouterLink to="/packages">Beli paket sekarang</RouterLink>
+        <RouterLink class="cta" to="/packages">Beli paket sekarang</RouterLink>
       </div>
       <div v-else class="membership-list">
         <div
@@ -111,11 +111,19 @@ onMounted(async () => {
           :class="['membership-card', mem.status]"
         >
           <h4>{{ mem.package.name }}</h4>
-          <p class="status">Status: <strong>{{ mem.status }}</strong></p>
-          <p>
-            Berlaku hingga:
-            <strong>{{ formatDate(mem.endDate) }}</strong>
+          <p class="status">
+            <span class="pill small">{{ mem.status }}</span>
           </p>
+          <div class="dates">
+            <div>
+              <small>Mulai</small>
+              <strong>{{ formatDate(mem.startDate) }}</strong>
+            </div>
+            <div>
+              <small>Berakhir</small>
+              <strong>{{ formatDate(mem.endDate) }}</strong>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -160,6 +168,11 @@ onMounted(async () => {
   border: 1px solid var(--border);
   text-align: left;
   background: var(--surface-alt);
+  transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+.membership-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 .membership-card.active {
   border-left: 6px solid var(--primary);
@@ -179,5 +192,33 @@ onMounted(async () => {
 }
 .status {
   text-transform: capitalize;
+  margin-bottom: 0.5rem;
+}
+.dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+.dates small {
+  color: var(--muted);
+}
+.dates strong {
+  display: block;
+  margin-top: 0.15rem;
+}
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.7rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(120deg, var(--primary), var(--primary-alt));
+  color: #fff;
+  font-weight: 700;
+}
+
+.pill.small {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
 }
 </style>

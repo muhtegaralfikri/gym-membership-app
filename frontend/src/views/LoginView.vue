@@ -47,38 +47,67 @@ const handleLogin = async () => {
 
 <template>
   <div class="login-page">
-    <h2>Login Member</h2>
-    
-    <form @submit.prevent="handleLogin">
-      <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" v-model="email" required />
-      </div>
+    <div class="login-card">
+      <h2>Masuk ke VuNest Gym</h2>
+      <p class="sub">Akses jadwal, status membership, dan pembayaran dalam satu tempat.</p>
       
-      <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" v-model="password" required />
-      </div>
-      
-      <button type="submit">Login</button>
-    </form>
+      <form @submit.prevent="handleLogin">
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" v-model="email" required placeholder="nama@contoh.com" />
+        </div>
+        
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" v-model="password" required placeholder="••••••••" />
+        </div>
+        
+        <button type="submit">Login</button>
+      </form>
 
-    <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="message">{{ message }}</p>
 
-    <p>
-      Belum punya akun? <RouterLink to="/register">Daftar di sini</RouterLink>
-    </p>
+      <p class="redirect">
+        Belum punya akun? <RouterLink to="/register">Daftar di sini</RouterLink>
+      </p>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* Style tidak berubah */
 .login-page {
-  max-width: 400px;
-  margin: 2rem auto;
-  padding: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.login-page::before {
+  content: '';
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(15, 157, 152, 0.14), transparent 45%);
+  filter: blur(12px);
+  transform: translate(-40%, -30%);
+  z-index: 0;
+}
+.login-card {
+  width: min(460px, 100%);
+  padding: 2rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  position: relative;
+  z-index: 1;
+}
+.login-card h2 {
+  margin: 0 0 0.35rem;
+  letter-spacing: -0.01em;
+}
+.sub {
+  margin: 0 0 1.25rem;
+  color: var(--muted);
 }
 .form-group {
   margin-bottom: 1rem;
@@ -86,22 +115,36 @@ const handleLogin = async () => {
 }
 .form-group label {
   display: block;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
 }
 .form-group input {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.65rem 0.75rem;
   box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
 }
 button {
   width: 100%;
-  padding: 0.75rem;
+  padding: 0.9rem;
 }
 .message {
   margin-top: 1rem;
-  color: green;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  background: var(--primary-contrast);
+  color: var(--text);
 }
 .message:not(:empty):not(:containing('sukses')) {
-  color: red;
+  background: #ffe7e7;
+  color: #c62828;
+}
+.redirect {
+  margin-top: 1.25rem;
+}
+.redirect a {
+  color: var(--primary);
 }
 </style>

@@ -65,7 +65,7 @@ const isDark = computed(() => theme.value === 'dark')
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.25rem;
-  background-color: var(--nav);
+  background: linear-gradient(120deg, var(--nav), var(--surface));
   border: 1px solid var(--nav-border);
   border-radius: 16px;
   backdrop-filter: blur(6px);
@@ -78,9 +78,12 @@ const isDark = computed(() => theme.value === 'dark')
 
 .navbar-brand a {
   font-weight: 800;
-  font-size: 1.25rem;
+  font-size: 1.35rem;
   color: var(--text);
   letter-spacing: -0.02em;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .navbar-actions {
