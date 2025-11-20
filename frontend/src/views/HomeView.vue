@@ -14,10 +14,16 @@ const registerLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'D
 const statusTitle = ref('Aktif • 27 hari')
 const statusSubtitle = ref('Pembaruan otomatis setelah pembayaran berhasil.')
 const trustCopy = ref('Sudah dipakai instruktur & member aktif')
-const metrics = ref<{ activeMembers: number; activeInstructors: number; latestInitials: string[] }>({
+const metrics = ref<{
+  activeMembers: number
+  activeInstructors: number
+  latestInitials: string[]
+  averageRemainingDays?: number
+}>({
   activeMembers: 0,
   activeInstructors: 0,
   latestInitials: [],
+  averageRemainingDays: 0,
 })
 
 onMounted(async () => {
