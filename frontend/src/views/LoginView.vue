@@ -29,11 +29,14 @@ const handleLogin = async () => {
 
     message.value = 'Login sukses! Mengalihkan...'
 
-    // 4. Redirect user ke Halaman Profil
+    // 4. Ambil profil untuk tahu role lalu arahkan
+    const profileRes = await api.get('/users/profile')
+    authStore.setUser(profileRes.data)
+    const target = profileRes.data.roleId === 1 ? '/admin' : '/profile'
     // Kita gunakan 'replace' agar user tidak bisa klik "back" ke halaman login
     setTimeout(() => {
-      router.replace('/profile')
-    }, 1000)
+      router.replace(target)
+    }, 400)
 
   } catch (error: any) {
     // --- 5. TANGANI ERROR DARI AXIOS ---

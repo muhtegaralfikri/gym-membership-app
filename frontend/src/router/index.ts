@@ -87,6 +87,11 @@ router.beforeEach(async (to, _from, next) => {
   // handled by interceptor
 }
 
+  if (to.name === 'profile' && auth.isAdmin) {
+    next({ name: 'admin' })
+    return
+  }
+
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     next({ name: 'login' })
     return

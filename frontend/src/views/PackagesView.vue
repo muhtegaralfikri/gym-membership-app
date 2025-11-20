@@ -19,6 +19,7 @@ const loading = ref(true)
 const message = ref('')
 const authStore = useAuthStore()
 const router = useRouter()
+const isAdmin = computed(() => authStore.isAdmin)
 const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY
 const snapReady = ref(false)
 const heroMetrics = ref<{ activeMembers: number; remainingDays: number }>({
@@ -103,6 +104,12 @@ const handleBuy = async (packageId: number) => {
     return
   }
 
+  if (authStore.isAdmin) {
+    message.value = 'Akun admin tidak membutuhkan pembelian membership.'
+    router.push('/admin')
+    return
+  }
+
   try {
     await loadSnap()
     const response = await api.post('/transactions', { packageId })
@@ -156,7 +163,8 @@ const handleBuy = async (packageId: number) => {
         </p>
         <div class="hero-cta">
           <RouterLink class="solid" to="/packages">Lihat paket</RouterLink>
-          <RouterLink class="ghost" to="/profile">Status saya</RouterLink>
+          <RouterLink v-if="!isAdmin" class="ghost" to="/profile">Status saya</RouterLink>
+          <RouterLink v-else class="ghost" to="/admin">Dashboard admin</RouterLink>
         </div>
       </div>
       <div class="hero-art">
