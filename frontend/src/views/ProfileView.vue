@@ -231,6 +231,7 @@ onMounted(async () => {
               Gagal/berakhir. Buat transaksi baru jika masih ingin lanjut.
             </p>
             <p v-else class="tip success">Pembayaran sukses, membership aktif.</p>
+            <RouterLink v-if="tx.status === 'pending'" class="ghost-btn tiny" to="/packages">Lanjutkan Bayar</RouterLink>
           </div>
         </div>
       </div>
@@ -319,6 +320,10 @@ onMounted(async () => {
 .ghost-btn:hover {
   background: var(--primary-contrast);
   color: var(--primary);
+}
+.ghost-btn.tiny {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.9rem;
 }
 .membership-section {
   padding: 1.5rem;

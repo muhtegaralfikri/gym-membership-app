@@ -64,14 +64,15 @@ const loadSnap = () =>
 
 // Fungsi untuk mengambil data paket (API Publik)
 const fetchPackages = async () => {
-  loading.value = true
   try {
     const response = await api.get('/packages')
     packages.value = response.data
   } catch (error: any) {
     message.value = error.response?.data?.message || 'Gagal memuat paket.'
   } finally {
-    loading.value = false
+    setTimeout(() => {
+      loading.value = false
+    }, 220)
   }
 }
 

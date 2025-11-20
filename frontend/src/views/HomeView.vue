@@ -7,6 +7,8 @@ const auth = useAuthStore()
 
 const primaryCta = computed(() => (auth.isAuthenticated ? '/profile' : '/login'))
 const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mulai Login'))
+const registerCta = computed(() => (auth.isAuthenticated ? '/profile' : '/register'))
+const registerLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Daftar'))
 </script>
 
 <template>
@@ -74,7 +76,7 @@ const primaryLabel = computed(() => (auth.isAuthenticated ? 'Lihat Profil' : 'Mu
         <p class="sub">Daftar akun atau langsung cek paket membership yang cocok.</p>
       </div>
       <div class="cta actions">
-        <RouterLink class="solid" to="/register">Daftar</RouterLink>
+        <RouterLink class="solid" :to="registerCta">{{ registerLabel }}</RouterLink>
         <RouterLink class="ghost" to="/packages">Lihat Paket</RouterLink>
       </div>
     </section>
