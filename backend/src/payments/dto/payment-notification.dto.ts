@@ -1,7 +1,7 @@
 // src/payments/dto/payment-notification.dto.ts
 
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class PaymentNotificationDto {
   @ApiProperty({ example: 'settlement' })
@@ -18,6 +18,11 @@ export class PaymentNotificationDto {
   @IsString()
   @IsNotEmpty()
   gross_amount: string;
+
+  @ApiProperty({ example: 'accept', required: false })
+  @IsString()
+  @IsOptional()
+  fraud_status?: string;
 
   // Di aplikasi production, kita juga akan menerima dan memvalidasi
   // 'signature_key' untuk keamanan, tapi kita skip untuk simulasi ini.
