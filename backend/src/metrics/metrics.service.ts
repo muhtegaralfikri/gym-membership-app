@@ -9,26 +9,30 @@ export class MetricsService {
     const now = new Date();
     const activeMemberships = await this.prisma.userMembership.findMany({
       where: {
-        status: 'active',
+        status: { in: ['active', 'upcoming'] },
         endDate: { gt: now },
       },
       select: {
         endDate: true,
+        userId: true,
       },
     });
 
-    const activeMembers = activeMemberships.length;
+    const activeMembers = new Set(activeMemberships.map((m) => m.userId)).size;
 
-    const averageRemainingDays =
+    const remainingDays =
       activeMemberships.length === 0
         ? 0
-        : Math.round(
-            activeMemberships.reduce((acc, m) => {
-              const diffDays =
-                (new Date(m.endDate).getTime() - now.getTime()) /
-                (1000 * 60 * 60 * 24);
-              return acc + diffDays;
-            }, 0) / activeMemberships.length,
+        : Math.max(
+            0,
+            Math.round(
+              activeMemberships.reduce((acc, m) => {
+                const diffDays =
+                  (new Date(m.endDate).getTime() - now.getTime()) /
+                  (1000 * 60 * 60 * 24);
+                return acc + diffDays;
+              }, 0) / activeMemberships.length,
+            ),
           );
 
     const adminOnly = await this.prisma.user.count({
@@ -57,7 +61,8 @@ export class MetricsService {
       activeMembers,
       activeInstructors: adminOnly,
       latestInitials,
-      averageRemainingDays,
+      averageRemainingDays: remainingDays,
+      remainingDays,
     };
   }
 }
