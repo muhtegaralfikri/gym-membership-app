@@ -7,12 +7,29 @@ export class MetricsService {
 
   async getSummary() {
     const now = new Date();
-    const activeMembers = await this.prisma.userMembership.count({
+    const activeMemberships = await this.prisma.userMembership.findMany({
       where: {
         status: 'active',
         endDate: { gt: now },
       },
+      select: {
+        endDate: true,
+      },
     });
+
+    const activeMembers = activeMemberships.length;
+
+    const averageRemainingDays =
+      activeMemberships.length === 0
+        ? 0
+        : Math.round(
+            activeMemberships.reduce((acc, m) => {
+              const diffDays =
+                (new Date(m.endDate).getTime() - now.getTime()) /
+                (1000 * 60 * 60 * 24);
+              return acc + diffDays;
+            }, 0) / activeMemberships.length,
+          );
 
     const adminOrStaff = await this.prisma.user.count({
       where: {
@@ -40,6 +57,7 @@ export class MetricsService {
       activeMembers,
       activeInstructors: adminOrStaff,
       latestInitials,
+      averageRemainingDays,
     };
   }
 }

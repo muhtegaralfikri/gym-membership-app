@@ -21,6 +21,10 @@ const authStore = useAuthStore()
 const router = useRouter()
 const clientKey = import.meta.env.VITE_MIDTRANS_CLIENT_KEY
 const snapReady = ref(false)
+const heroMetrics = ref<{ activeMembers: number; averageRemainingDays: number }>({
+  activeMembers: 0,
+  averageRemainingDays: 0,
+})
 
 // Parse fitur paket menjadi array
 const parsedPackages = computed(() =>
@@ -65,7 +69,17 @@ const loadSnap = () =>
 // Fungsi untuk mengambil data paket (API Publik)
 const fetchPackages = async () => {
   try {
-    const response = await api.get('/packages')
+    const [packagesResponse, metricsResponse] = await Promise.all([
+      api.get('/packages'),
+      api.get('/metrics/summary').catch(() => null),
+    ])
+    if (metricsResponse?.data) {
+      heroMetrics.value = {
+        activeMembers: metricsResponse.data.activeMembers || 0,
+        averageRemainingDays: metricsResponse.data.averageRemainingDays || 0,
+      }
+    }
+    const response = packagesResponse
     packages.value = response.data
   } catch (error: any) {
     message.value = error.response?.data?.message || 'Gagal memuat paket.'
@@ -148,14 +162,14 @@ const handleBuy = async (packageId: number) => {
       <div class="hero-art">
         <div class="glow"></div>
         <div class="metrics">
-          <span class="metric-title">Rata-rata hadir</span>
-          <strong>4.2x/minggu</strong>
-          <small>Member aktif</small>
+          <span class="metric-title">Member aktif</span>
+          <strong>{{ heroMetrics.activeMembers || 0 }}</strong>
+          <small>Real-time</small>
         </div>
         <div class="metrics alt">
-          <span class="metric-title">Durasi sisa</span>
-          <strong>27 hari</strong>
-          <small>Langsung terukur</small>
+          <span class="metric-title">Rata-rata sisa</span>
+          <strong>{{ heroMetrics.averageRemainingDays || 0 }} hari</strong>
+          <small>Membership aktif</small>
         </div>
       </div>
     </header>
