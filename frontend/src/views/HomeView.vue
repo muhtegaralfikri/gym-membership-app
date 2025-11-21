@@ -102,7 +102,7 @@ onMounted(async () => {
   <div class="home">
     <section class="hero card">
       <div class="hero-copy">
-        <div class="pill">VuNest Gym</div>
+        <div class="pill">VueNest Gym</div>
         <h1>Tempat latihan yang sinkron dengan hidupmu.</h1>
         <p class="sub">
           Pilih paket, bayar dengan Midtrans, dan pantau membership tanpa ribet. Jadwal, pembayaran,

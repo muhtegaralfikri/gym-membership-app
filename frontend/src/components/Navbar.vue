@@ -68,7 +68,7 @@ watch(
 <template>
   <nav class="navbar">
     <div class="navbar-brand">
-      <RouterLink to="/" @click="closeMenu">VuNest GYM</RouterLink>
+      <RouterLink to="/" @click="closeMenu">VueNest GYM</RouterLink>
     </div>
     <div class="navbar-actions">
       <button class="theme-toggle" type="button" @click="toggleTheme">
