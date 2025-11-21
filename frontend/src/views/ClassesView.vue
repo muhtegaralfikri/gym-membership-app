@@ -208,7 +208,7 @@ onMounted(fetchData)
 .classes-page {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .hero {
@@ -218,9 +218,16 @@ onMounted(fetchData)
   align-items: center;
   padding: 1.5rem;
 }
+.hero h2 {
+  margin: 0.2rem 0 0.4rem;
+}
+.hero .sub {
+  margin-bottom: 0.6rem;
+}
 .hero-panels {
   display: grid;
   gap: 0.6rem;
+  align-self: stretch;
 }
 .panel {
   border: 1px solid var(--border);
@@ -261,14 +268,21 @@ onMounted(fetchData)
 
 .grid {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: 1rem;
+  align-items: start;
+}
+section.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.1rem 1.15rem;
 }
 .section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 .eyebrow {
   margin: 0;
@@ -291,6 +305,9 @@ onMounted(fetchData)
   padding: 1rem;
   background: var(--surface);
   box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 .class-meta {
   display: flex;
@@ -364,6 +381,9 @@ onMounted(fetchData)
 .empty {
   padding: 1rem;
   color: var(--muted);
+  background: var(--surface-alt);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
 }
 .skeleton-grid {
   display: grid;

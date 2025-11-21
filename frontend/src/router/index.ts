@@ -13,6 +13,7 @@ import HomeView from '../views/HomeView.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminPackagesView from '../views/AdminPackagesView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
+import AdminClassesView from '../views/AdminClassesView.vue'
 import ClassesView from '../views/ClassesView.vue'
 import CheckinView from '../views/CheckinView.vue'
 
@@ -57,6 +58,12 @@ const router = createRouter({
       path: '/admin-users',
       name: 'admin-users',
       component: AdminUsersView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/admin-classes',
+      name: 'admin-classes',
+      component: AdminClassesView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     // 3. (Opsional) Kita bisa tambahkan rute '/packages'
