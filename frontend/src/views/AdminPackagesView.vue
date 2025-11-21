@@ -913,26 +913,45 @@ th {
   margin-top: 1rem;
 }
 
+.promo-section.card {
+  padding: 1.1rem 1.2rem;
+  box-sizing: border-box;
+}
+
 .promo-grid {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: 1.1fr 1.1fr;
   gap: 1rem;
+  align-items: start;
+  grid-auto-rows: 1fr;
+}
+
+.promo-section .section-head {
+  margin-bottom: 0.75rem;
 }
 
 .promo-form {
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 0.9rem;
+  padding: 1rem 1.1rem;
   background: var(--surface-alt);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  min-height: 100%;
+  box-sizing: border-box;
 }
 
 .promo-list {
   border: 1px solid var(--border);
   border-radius: 14px;
   overflow-x: auto;
+  min-height: 320px;
+  padding: 0.95rem 1rem;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 .small-text {
@@ -942,6 +961,23 @@ th {
 .form-success {
   color: #0f766e;
   margin: 0.25rem 0 0;
+}
+
+.promo-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.1rem;
+}
+
+.promo-form .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.promo-form .form-field.full {
+  grid-column: 1 / -1;
 }
 
 @media (max-width: 960px) {
