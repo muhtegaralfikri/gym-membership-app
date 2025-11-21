@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import api from '@/services/api'
 
 interface GymClass {
@@ -12,6 +12,7 @@ interface GymClass {
   endTime: string
   capacity: number
   availableSlots?: number
+  status?: ClassStatus
 }
 
 type ClassStatus = 'upcoming' | 'ongoing' | 'finished'
@@ -21,7 +22,22 @@ const loading = ref(true)
 const error = ref('')
 const message = ref('')
 const saving = ref(false)
-const showFinished = ref(false)
+const statusFilter = ref<'all' | ClassStatus>('all')
+const editingId = ref<number | null>(null)
+const bookingsLoading = ref(false)
+const bookingsError = ref('')
+const selectedClassId = ref<number | null>(null)
+const selectedClassTitle = ref('')
+const bookings = ref<
+  Array<{
+    id: number
+    status: string
+    user?: { name?: string; email?: string }
+    checkinCode?: string
+    createdAt: string
+    checkedInAt?: string | null
+  }>
+>([])
 
 const classForm = ref({
   title: '',
@@ -46,7 +62,8 @@ const fetchClasses = async () => {
   loading.value = true
   error.value = ''
   try {
-    const res = await api.get('/classes')
+    const query = statusFilter.value === 'all' ? '' : `?status=${statusFilter.value}`
+    const res = await api.get(`/admin/classes${query}`)
     classes.value = res.data
   } catch (err: any) {
     error.value = err?.response?.data?.message || 'Gagal memuat kelas.'
@@ -100,42 +117,105 @@ const submitClass = async () => {
 
   saving.value = true
   try {
-    await api.post('/admin/classes', {
+    const payload = {
       ...classForm.value,
       startTime: new Date(classForm.value.startTime).toISOString(),
       endTime: new Date(classForm.value.endTime).toISOString(),
-    })
-    message.value = 'Kelas dibuat.'
+    }
+    if (editingId.value) {
+      await api.put(`/admin/classes/${editingId.value}`, payload)
+      message.value = 'Kelas diperbarui.'
+    } else {
+      await api.post('/admin/classes', payload)
+      message.value = 'Kelas dibuat.'
+    }
     resetForm()
+    editingId.value = null
     fetchClasses()
   } catch (err: any) {
-    error.value = err?.response?.data?.message || 'Gagal membuat kelas.'
+    error.value = err?.response?.data?.message || 'Gagal menyimpan kelas.'
   } finally {
     saving.value = false
   }
 }
-
-const decoratedClasses = computed(() => {
-  const now = Date.now()
-  return classes.value.map((cls) => {
-    const start = new Date(cls.startTime).getTime()
-    const end = new Date(cls.endTime).getTime()
-    let status: ClassStatus = 'upcoming'
-    if (now >= end) status = 'finished'
-    else if (now >= start) status = 'ongoing'
-    return { ...cls, status }
-  })
-})
-
-const visibleClasses = computed(() =>
-  decoratedClasses.value.filter((cls) => showFinished.value || cls.status !== 'finished'),
-)
 
 const statusLabel = (status: ClassStatus) => {
   if (status === 'ongoing') return 'Berlangsung'
   if (status === 'finished') return 'Selesai'
   return 'Akan datang'
 }
+
+const startEdit = (cls: GymClass) => {
+  classForm.value = {
+    title: cls.title,
+    description: cls.description || '',
+    instructor: cls.instructor || '',
+    location: cls.location || '',
+    startTime: cls.startTime ? new Date(cls.startTime).toISOString().slice(0, 16) : '',
+    endTime: cls.endTime ? new Date(cls.endTime).toISOString().slice(0, 16) : '',
+    capacity: cls.capacity,
+  }
+  editingId.value = cls.id
+}
+
+const cancelEdit = () => {
+  editingId.value = null
+  resetForm()
+}
+
+const fetchBookings = async (cls: GymClass) => {
+  bookingsLoading.value = true
+  bookingsError.value = ''
+  selectedClassId.value = cls.id
+  selectedClassTitle.value = cls.title
+  bookings.value = []
+  try {
+    const res = await api.get(`/admin/classes/${cls.id}/bookings`)
+    bookings.value = res.data
+  } catch (err: any) {
+    bookingsError.value = err?.response?.data?.message || 'Gagal memuat peserta.'
+  } finally {
+    bookingsLoading.value = false
+  }
+}
+
+const cancelBooking = async (bookingId: number) => {
+  if (!selectedClassId.value) return
+  const ok = window.confirm('Batalkan booking ini?')
+  if (!ok) return
+  try {
+    await api.patch(`/admin/classes/bookings/${bookingId}/cancel`)
+    await fetchBookings({
+      id: selectedClassId.value,
+      title: selectedClassTitle.value,
+      startTime: '',
+      endTime: '',
+      capacity: 0,
+    } as GymClass)
+  } catch (err: any) {
+    bookingsError.value = err?.response?.data?.message || 'Gagal membatalkan booking.'
+  }
+}
+
+const checkinBooking = async (bookingId: number) => {
+  if (!selectedClassId.value) return
+  try {
+    await api.patch(`/admin/classes/bookings/${bookingId}/checkin`)
+    await fetchBookings({
+      id: selectedClassId.value,
+      title: selectedClassTitle.value,
+      startTime: '',
+      endTime: '',
+      capacity: 0,
+    } as GymClass)
+  } catch (err: any) {
+    bookingsError.value = err?.response?.data?.message || 'Gagal check-in booking.'
+  }
+}
+
+watch(statusFilter, () => {
+  fetchClasses()
+})
 
 onMounted(fetchClasses)
 </script>
@@ -148,7 +228,15 @@ onMounted(fetchClasses)
         <h2>Kelola Jadwal Kelas</h2>
         <p class="muted">Buat jadwal, kapasitas, dan lihat slot tersedia.</p>
       </div>
-      <button type="button" class="ghost-btn" @click="fetchClasses">Refresh</button>
+      <div class="actions">
+        <select v-model="statusFilter">
+          <option value="all">Semua status</option>
+          <option value="upcoming">Akan datang</option>
+          <option value="ongoing">Berlangsung</option>
+          <option value="finished">Selesai</option>
+        </select>
+        <button type="button" class="ghost-btn" @click="fetchClasses">Refresh</button>
+      </div>
     </div>
 
     <div v-if="message" class="alert success">{{ message }}</div>
@@ -187,30 +275,28 @@ onMounted(fetchClasses)
           </label>
         </div>
         <div class="form-actions">
-          <button type="submit" :disabled="saving">{{ saving ? 'Menyimpan...' : 'Buat Kelas' }}</button>
-          <button type="button" class="ghost-btn" @click="resetForm">Reset</button>
+          <button type="submit" :disabled="saving">
+            {{ saving ? 'Menyimpan...' : editingId ? 'Simpan Perubahan' : 'Buat Kelas' }}
+          </button>
+          <button type="button" class="ghost-btn" @click="editingId ? cancelEdit() : resetForm()">
+            {{ editingId ? 'Batal Edit' : 'Reset' }}
+          </button>
         </div>
       </form>
 
       <div class="card list-card">
         <div class="section-head">
-          <h3>Jadwal akan datang</h3>
-          <label class="toggle">
-            <input v-model="showFinished" type="checkbox" />
-            <span>Lihat kelas selesai</span>
-          </label>
+          <h3>Jadwal kelas</h3>
+          <small class="muted">Filter status: {{ statusFilter }}</small>
         </div>
         <div v-if="loading" class="skeleton-list">
           <div class="shimmer line wide"></div>
           <div class="shimmer line mid"></div>
           <div class="shimmer line"></div>
         </div>
-        <div v-else-if="!visibleClasses.length && !classes.length" class="empty">Belum ada kelas.</div>
-        <div v-else-if="!visibleClasses.length" class="empty">
-          Semua kelas selesai. Aktifkan toggle untuk melihat arsip.
-        </div>
+        <div v-else-if="!classes.length" class="empty">Belum ada kelas.</div>
         <div v-else class="list">
-          <div v-for="cls in visibleClasses" :key="cls.id" class="list-item">
+          <div v-for="cls in classes" :key="cls.id" class="list-item">
             <div>
               <p class="eyebrow">{{ formatDate(cls.startTime) }}</p>
               <strong>{{ cls.title }}</strong>
@@ -221,14 +307,66 @@ onMounted(fetchClasses)
             <div class="meta">
               <span class="badge">Kapasitas {{ cls.capacity }}</span>
               <span class="badge alt">Sisa {{ cls.availableSlots ?? cls.capacity }}</span>
-              <span :class="['status-badge', cls.status]">{{ statusLabel(cls.status) }}</span>
+              <span :class="['status-badge', cls.status]">{{ statusLabel(cls.status || 'upcoming') }}</span>
+              <div class="meta-actions">
+                <button type="button" class="ghost-btn small" @click="startEdit(cls)">Edit</button>
+                <button
+                  type="button"
+                  class="ghost-btn small"
+                  @click="fetchBookings(cls)"
+                  :disabled="selectedClassId === cls.id && bookingsLoading"
+                >
+                  {{ selectedClassId === cls.id ? 'Memuat...' : 'Peserta' }}
+                </button>
+                <button
+                  type="button"
+                  class="ghost-btn danger small"
+                  :disabled="deletingId === cls.id"
+                  @click="deleteClass(cls.id)"
+                >
+                  {{ deletingId === cls.id ? 'Menghapus...' : 'Hapus' }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card bookings-card">
+        <div class="section-head">
+          <div>
+            <h3>Peserta kelas</h3>
+            <p class="muted">
+              {{ selectedClassTitle ? 'Kelas: ' + selectedClassTitle : 'Pilih kelas untuk melihat peserta.' }}
+            </p>
+          </div>
+        </div>
+        <div v-if="bookingsLoading" class="skeleton-list">
+          <div class="shimmer line wide"></div>
+          <div class="shimmer line mid"></div>
+        </div>
+        <div v-else-if="bookingsError" class="alert error">{{ bookingsError }}</div>
+        <div v-else-if="selectedClassId && !bookings.length" class="empty">Belum ada booking.</div>
+        <div v-else-if="!selectedClassId" class="empty">Belum ada kelas dipilih.</div>
+        <div v-else class="booking-list">
+          <div v-for="booking in bookings" :key="booking.id" class="booking-row">
+            <div>
+              <strong>{{ booking.user?.name || 'Tanpa nama' }}</strong>
+              <p class="muted tiny">{{ booking.user?.email || '-' }}</p>
+              <p class="muted tiny">Kode: {{ booking.checkinCode || '-' }}</p>
+            </div>
+            <div class="booking-actions">
+              <span class="status-badge" :class="booking.status">{{ booking.status }}</span>
               <button
                 type="button"
-                class="ghost-btn danger small"
-                :disabled="deletingId === cls.id"
-                @click="deleteClass(cls.id)"
+                class="ghost-btn small"
+                @click="checkinBooking(booking.id)"
+                :disabled="booking.status === 'checked_in'"
               >
-                {{ deletingId === cls.id ? 'Menghapus...' : 'Hapus' }}
+                Check-in
+              </button>
+              <button type="button" class="ghost-btn danger small" @click="cancelBooking(booking.id)">
+                Batalkan
               </button>
             </div>
           </div>
@@ -249,6 +387,17 @@ onMounted(fetchClasses)
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+}
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.actions select {
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 .eyebrow {
   margin: 0;
@@ -342,6 +491,12 @@ onMounted(fetchClasses)
   gap: 0.35rem;
   align-items: flex-end;
 }
+.meta-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 .badge {
   background: var(--primary-contrast);
   color: var(--primary);
@@ -368,7 +523,19 @@ onMounted(fetchClasses)
   background: #f4f7fb;
   color: #5b6476;
 }
+.status-badge.cancelled {
+  background: #ffe7e7;
+  color: #c62828;
+}
+.status-badge.checked_in {
+  background: #e7fff6;
+  color: #0f9d98;
+}
 .ghost-btn.danger.small {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.9rem;
+}
+.ghost-btn.small {
   padding: 0.25rem 0.55rem;
   font-size: 0.9rem;
 }
@@ -411,6 +578,32 @@ onMounted(fetchClasses)
   background: var(--surface-alt);
   border: 1px dashed var(--border);
   border-radius: 12px;
+}
+.bookings-card {
+  grid-column: 1 / -1;
+  padding: 1rem;
+}
+.booking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+.booking-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  background: var(--surface);
+}
+.booking-actions {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 @media (max-width: 960px) {
   .section-head {

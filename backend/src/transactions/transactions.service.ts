@@ -186,22 +186,57 @@ export class TransactionsService {
   /**
    * (Admin) Mengambil semua riwayat transaksi di sistem
    */
-  async findAllTransactions() {
-    return this.prisma.transaction.findMany({
-      include: {
-        package: true, // Sertakan detail paket
-        user: {
-          // Sertakan detail user (yang aman, tanpa password)
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+  async findAllTransactions(params?: {
+    status?: 'pending' | 'success' | 'failed';
+    search?: string;
+    skip?: number;
+    take?: number;
+  }) {
+    const where: any = {};
+    if (params?.status) {
+      where.status = params.status;
+    }
+    if (params?.search) {
+      const term = params.search;
+      where.OR = [
+        { orderId: { contains: term, mode: 'insensitive' } },
+        { user: { name: { contains: term, mode: 'insensitive' } } },
+        { user: { email: { contains: term, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.transaction.findMany({
+        where,
+        include: {
+          package: true,
+          user: { select: { id: true, name: true, email: true } },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
+        orderBy: { createdAt: 'desc' },
+        skip: params?.skip ?? 0,
+        take: params?.take ?? 20,
+      }),
+      this.prisma.transaction.count({ where }),
+    ]);
+
+    return { data, total };
+  }
+
+  async exportTransactionsCsv(params?: { status?: 'pending' | 'success' | 'failed'; search?: string }) {
+    const { data } = await this.findAllTransactions({ ...params, skip: 0, take: 1000 });
+    const header = ['orderId', 'userName', 'email', 'package', 'amount', 'status', 'createdAt'];
+    const rows = data.map((t) => [
+      t.orderId,
+      t.user?.name || '-',
+      t.user?.email || '-',
+      t.package?.name || '-',
+      t.amount.toString(),
+      t.status,
+      t.createdAt.toISOString(),
+    ]);
+    const csv = [header.join(','), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join(
+      '\n',
+    );
+    return csv;
   }
 }
