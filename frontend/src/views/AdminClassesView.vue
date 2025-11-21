@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '@/services/api'
 
 interface GymClass {
@@ -14,11 +14,14 @@ interface GymClass {
   availableSlots?: number
 }
 
+type ClassStatus = 'upcoming' | 'ongoing' | 'finished'
+
 const classes = ref<GymClass[]>([])
 const loading = ref(true)
 const error = ref('')
 const message = ref('')
 const saving = ref(false)
+const showFinished = ref(false)
 
 const classForm = ref({
   title: '',
@@ -93,6 +96,28 @@ const submitClass = async () => {
   }
 }
 
+const decoratedClasses = computed(() => {
+  const now = Date.now()
+  return classes.value.map((cls) => {
+    const start = new Date(cls.startTime).getTime()
+    const end = new Date(cls.endTime).getTime()
+    let status: ClassStatus = 'upcoming'
+    if (now >= end) status = 'finished'
+    else if (now >= start) status = 'ongoing'
+    return { ...cls, status }
+  })
+})
+
+const visibleClasses = computed(() =>
+  decoratedClasses.value.filter((cls) => showFinished.value || cls.status !== 'finished'),
+)
+
+const statusLabel = (status: ClassStatus) => {
+  if (status === 'ongoing') return 'Berlangsung'
+  if (status === 'finished') return 'Selesai'
+  return 'Akan datang'
+}
+
 onMounted(fetchClasses)
 </script>
 
@@ -151,15 +176,22 @@ onMounted(fetchClasses)
       <div class="card list-card">
         <div class="section-head">
           <h3>Jadwal akan datang</h3>
+          <label class="toggle">
+            <input v-model="showFinished" type="checkbox" />
+            <span>Lihat kelas selesai</span>
+          </label>
         </div>
         <div v-if="loading" class="skeleton-list">
           <div class="shimmer line wide"></div>
           <div class="shimmer line mid"></div>
           <div class="shimmer line"></div>
         </div>
-        <div v-else-if="!classes.length" class="empty">Belum ada kelas.</div>
+        <div v-else-if="!visibleClasses.length && !classes.length" class="empty">Belum ada kelas.</div>
+        <div v-else-if="!visibleClasses.length" class="empty">
+          Semua kelas selesai. Aktifkan toggle untuk melihat arsip.
+        </div>
         <div v-else class="list">
-          <div v-for="cls in classes" :key="cls.id" class="list-item">
+          <div v-for="cls in visibleClasses" :key="cls.id" class="list-item">
             <div>
               <p class="eyebrow">{{ formatDate(cls.startTime) }}</p>
               <strong>{{ cls.title }}</strong>
@@ -170,6 +202,7 @@ onMounted(fetchClasses)
             <div class="meta">
               <span class="badge">Kapasitas {{ cls.capacity }}</span>
               <span class="badge alt">Sisa {{ cls.availableSlots ?? cls.capacity }}</span>
+              <span :class="['status-badge', cls.status]">{{ statusLabel(cls.status) }}</span>
             </div>
           </div>
         </div>
@@ -249,6 +282,18 @@ onMounted(fetchClasses)
   gap: 0.5rem;
   background: var(--surface);
 }
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.toggle input {
+  accent-color: var(--primary);
+  width: 18px;
+  height: 18px;
+}
 .list {
   display: flex;
   flex-direction: column;
@@ -280,6 +325,21 @@ onMounted(fetchClasses)
 }
 .badge.alt {
   background: var(--surface-alt);
+}
+.status-badge {
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+.status-badge.ongoing {
+  background: #fff3cd;
+  color: #b26b00;
+}
+.status-badge.finished {
+  background: #f4f7fb;
+  color: #5b6476;
 }
 .alert {
   padding: 0.75rem 1rem;

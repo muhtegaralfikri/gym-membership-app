@@ -418,8 +418,13 @@ onMounted(fetchAdminData)
   gap: 0.75rem;
 }
 
+.panel-grid > * {
+  min-width: 0;
+}
+
 .panel {
   padding: 1rem;
+  min-width: 0;
 }
 
 .section-head {
@@ -428,6 +433,7 @@ onMounted(fetchAdminData)
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .ghost-btn {
@@ -436,6 +442,7 @@ onMounted(fetchAdminData)
   border: 1px solid var(--border);
   box-shadow: none;
   padding: 0.45rem 0.8rem;
+  border-radius: 10px;
 }
 
 .ghost-btn:hover {
@@ -445,6 +452,7 @@ onMounted(fetchAdminData)
 .table-wrapper {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+  width: 100%;
 }
 
 .table-wrapper.wide table {
@@ -477,6 +485,7 @@ th {
 .stacked {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .status {
@@ -526,6 +535,7 @@ th {
   gap: 0.65rem;
   padding: 0.6rem 0.35rem;
   border-bottom: 1px solid var(--border);
+  min-width: 0;
 }
 
 .avatar {
@@ -700,6 +710,17 @@ th {
 .ghost-btn.danger {
   border-color: #f26c2d;
   color: #f26c2d;
+}
+
+@media (max-width: 768px) {
+  #latest-users .avatar {
+    display: none;
+  }
+
+  #latest-users .list li {
+    gap: 0.5rem;
+    padding-left: 0;
+  }
 }
 
 @media (max-width: 960px) {
