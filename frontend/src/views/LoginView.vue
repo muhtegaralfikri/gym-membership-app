@@ -55,7 +55,7 @@ const handleLogin = async () => {
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h2>Masuk ke VuNest Gym</h2>
+      <h2>Masuk ke VueNest Gym</h2>
       <p class="sub">Akses jadwal, status membership, dan pembayaran dalam satu tempat.</p>
       
       <form @submit.prevent="handleLogin">

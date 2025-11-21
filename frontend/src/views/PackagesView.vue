@@ -302,20 +302,22 @@ const handleBuy = async (packageId: number) => {
         <ul class="features bundle" v-if="pkg.bundle?.length">
           <li v-for="item in pkg.bundle" :key="item">+ {{ item }}</li>
         </ul>
-        <div class="promo-apply">
-          <input
-            v-model="promoCode"
-            type="text"
-            placeholder="Kode promo"
-            :disabled="promoLoading"
-          />
-          <button type="button" class="ghost-btn" :disabled="promoLoading" @click="applyPromo(pkg.id)">
-            {{ promoLoading ? 'Memeriksa...' : 'Terapkan' }}
-          </button>
-        </div>
-        <div class="actions">
-          <button @click="handleBuy(pkg.id)">Beli Sekarang</button>
-          <small>Termasuk akses kelas & locker dasar</small>
+        <div class="bottom-cta">
+          <div class="promo-apply">
+            <input
+              v-model="promoCode"
+              type="text"
+              placeholder="Kode promo"
+              :disabled="promoLoading"
+            />
+            <button type="button" class="ghost-btn" :disabled="promoLoading" @click="applyPromo(pkg.id)">
+              {{ promoLoading ? 'Memeriksa...' : 'Terapkan' }}
+            </button>
+          </div>
+          <div class="actions">
+            <button @click="handleBuy(pkg.id)">Beli Sekarang</button>
+            <small>Termasuk akses kelas & locker dasar</small>
+          </div>
         </div>
       </div>
     </div>
@@ -556,6 +558,13 @@ const handleBuy = async (packageId: number) => {
   color: var(--primary);
 }
 
+.bottom-cta {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .promo-apply {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -590,7 +599,6 @@ const handleBuy = async (packageId: number) => {
   flex-direction: column;
   gap: 0.25rem;
   color: var(--muted);
-  margin-top: auto;
 }
 
 button {
