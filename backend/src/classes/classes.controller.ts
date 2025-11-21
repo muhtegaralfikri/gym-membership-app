@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { ClassesService } from './classes.service';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -37,6 +38,15 @@ export class ClassesController {
   @ApiOperation({ summary: 'Admin: buat jadwal kelas' })
   create(@Body() dto: CreateClassDto) {
     return this.classesService.createClass(dto);
+  }
+
+  @Delete('admin/classes/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: hapus jadwal kelas' })
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.classesService.deleteClass(id);
   }
 
   @Get('classes/bookings/me')

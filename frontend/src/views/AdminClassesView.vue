@@ -55,6 +55,25 @@ const fetchClasses = async () => {
   }
 }
 
+const deletingId = ref<number | null>(null)
+
+const deleteClass = async (id: number) => {
+  const confirmDelete = window.confirm('Hapus kelas ini? Booking terkait akan ikut dihapus.')
+  if (!confirmDelete) return
+  deletingId.value = id
+  error.value = ''
+  message.value = ''
+  try {
+    await api.delete(`/admin/classes/${id}`)
+    message.value = 'Kelas dihapus.'
+    await fetchClasses()
+  } catch (err: any) {
+    error.value = err?.response?.data?.message || 'Gagal menghapus kelas.'
+  } finally {
+    deletingId.value = null
+  }
+}
+
 const resetForm = () => {
   classForm.value = {
     title: '',
@@ -203,6 +222,14 @@ onMounted(fetchClasses)
               <span class="badge">Kapasitas {{ cls.capacity }}</span>
               <span class="badge alt">Sisa {{ cls.availableSlots ?? cls.capacity }}</span>
               <span :class="['status-badge', cls.status]">{{ statusLabel(cls.status) }}</span>
+              <button
+                type="button"
+                class="ghost-btn danger small"
+                :disabled="deletingId === cls.id"
+                @click="deleteClass(cls.id)"
+              >
+                {{ deletingId === cls.id ? 'Menghapus...' : 'Hapus' }}
+              </button>
             </div>
           </div>
         </div>
@@ -340,6 +367,10 @@ onMounted(fetchClasses)
 .status-badge.finished {
   background: #f4f7fb;
   color: #5b6476;
+}
+.ghost-btn.danger.small {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.9rem;
 }
 .alert {
   padding: 0.75rem 1rem;

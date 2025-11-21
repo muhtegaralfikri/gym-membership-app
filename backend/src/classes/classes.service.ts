@@ -147,4 +147,19 @@ export class ClassesService {
       booking: updated,
     };
   }
+
+  async deleteClass(id: number) {
+    const gymClass = await this.prisma.gymClass.findUnique({
+      where: { id },
+    });
+
+    if (!gymClass) {
+      throw new NotFoundException('Kelas tidak ditemukan.');
+    }
+
+    await this.prisma.classBooking.deleteMany({ where: { classId: id } });
+    await this.prisma.gymClass.delete({ where: { id } });
+
+    return { message: 'Kelas dihapus.', class: gymClass };
+  }
 }

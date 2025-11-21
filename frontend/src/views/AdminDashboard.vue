@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
+import gymIcon from '@/assets/gym-dumbbell.svg'
 
 interface AdminUser {
   id: number
@@ -87,11 +88,73 @@ const totalRevenue = computed(() =>
     .reduce((sum, t) => sum + Number(t.amount || 0), 0),
 )
 
-const pendingCount = computed(() => transactions.value.filter((t) => t.status === 'pending').length)
-const failedCount = computed(() => transactions.value.filter((t) => t.status === 'failed').length)
+const successCount = computed(() => transactions.value.filter((t) => t.status === 'success').length)
+const totalTransactions = computed(() => transactions.value.length)
 const activePackageCount = computed(() => packages.value.filter((p) => p.isActive).length)
 const latestUsers = computed(() => users.value.slice(0, 6))
 const latestTransactions = computed(() => transactions.value.slice(0, 8))
+const averageTicket = computed(() => {
+  if (!successCount.value) return 0
+  return totalRevenue.value / successCount.value
+})
+
+const statusSeries = computed(() => {
+  const total = totalTransactions.value || 1
+  const labels: Record<PaymentStatus, string> = {
+    success: 'Berhasil',
+    pending: 'Pending',
+    failed: 'Gagal',
+  }
+
+  const colors: Record<PaymentStatus, string> = {
+    success: '#0f766e',
+    pending: '#b26b00',
+    failed: '#c62828',
+  }
+
+  return (['success', 'pending', 'failed'] as PaymentStatus[]).map((key) => {
+    const count = transactions.value.filter((t) => t.status === key).length
+    const percent = Math.round((count / total) * 100)
+
+    return {
+      key,
+      label: labels[key],
+      count,
+      percent,
+      color: colors[key],
+    }
+  })
+})
+
+const successShare = computed(() => {
+  if (!totalTransactions.value) return 0
+  return Math.round((successCount.value / totalTransactions.value) * 100)
+})
+
+const popularPackage = computed(() => {
+  const collected: Record<
+    string,
+    {
+      name: string
+      durationDays?: number
+      count: number
+    }
+  > = {}
+
+  transactions.value.forEach((tx) => {
+    if (tx.status !== 'success') return
+    const pkg = tx.package
+    if (!pkg?.name) return
+    const key = pkg.name.toLowerCase()
+    if (!collected[key]) {
+      collected[key] = { name: pkg.name, durationDays: pkg.durationDays, count: 0 }
+    }
+    collected[key].count += 1
+  })
+
+  const ranked = Object.values(collected).sort((a, b) => b.count - a.count)
+  return ranked[0] || null
+})
 
 const fetchAdminData = async () => {
   error.value = ''
@@ -123,7 +186,10 @@ onMounted(fetchAdminData)
   <div class="admin-page">
     <header class="hero card">
       <div>
-        <div class="pill">Admin Dashboard</div>
+        <div class="pill with-icon">
+          <img :src="gymIcon" alt="Gym icon" />
+          <span>Admin Dashboard</span>
+        </div>
         <h1>Kontrol operasi gym</h1>
         <p class="sub">
           Pantau pembayaran, membership aktif, dan paket dalam satu tampilan. Data ditarik langsung
@@ -175,26 +241,51 @@ onMounted(fetchAdminData)
     </div>
 
     <template v-else>
-      <section class="stat-grid">
-        <div class="stat-card">
-          <p class="label">Pendapatan sukses</p>
-          <h3>{{ formatCurrency(totalRevenue) }}</h3>
-          <small>Akumulasi transaksi settlement</small>
+      <section class="panel card insight">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Ringkasan cepat</p>
+            <h3>Status operasional</h3>
+            <p class="muted helper">Angka digabung dari transaksi, pengguna, dan katalog paket.</p>
+          </div>
+          <button type="button" class="ghost-btn" @click="fetchAdminData">Segarkan</button>
         </div>
-        <div class="stat-card alt">
-          <p class="label">Transaksi pending</p>
-          <h3>{{ pendingCount }}</h3>
-          <small>Menunggu pembayaran atau capture</small>
-        </div>
-        <div class="stat-card warn">
-          <p class="label">Transaksi gagal</p>
-          <h3>{{ failedCount }}</h3>
-          <small>Butuh follow-up manual</small>
-        </div>
-        <div class="stat-card">
-          <p class="label">Paket aktif</p>
-          <h3>{{ activePackageCount }} / {{ packages.length }}</h3>
-          <small>Tersedia di katalog</small>
+        <div class="insight-grid">
+          <div class="insight-list">
+            <div class="insight-row">
+              <strong>{{ formatCurrency(totalRevenue) }}</strong>
+              <span>Pendapatan berhasil ({{ successShare }}% dari {{ totalTransactions }} transaksi)</span>
+            </div>
+            <div class="insight-row">
+              <strong>{{ formatCurrency(averageTicket) }}</strong>
+              <span>Rata-rata tiket per transaksi sukses</span>
+            </div>
+            <div class="insight-row">
+              <strong>{{ activePackageCount }} paket</strong>
+              <span>Aktif dari {{ packages.length }} total katalog</span>
+            </div>
+            <div v-if="popularPackage" class="insight-row">
+              <strong>{{ popularPackage.name }}</strong>
+              <span>Paling sering dipilih ({{ popularPackage.count }}x, {{ popularPackage.durationDays || 0 }} hari)</span>
+            </div>
+            <div v-else class="insight-row muted">
+              <strong>Belum ada paket unggulan</strong>
+              <span>Butuh transaksi sukses untuk menentukan paket favorit</span>
+            </div>
+          </div>
+          <div class="chart-card">
+            <p class="eyebrow">Distribusi status transaksi</p>
+            <div class="chart-bars">
+              <div v-for="series in statusSeries" :key="series.key" class="bar-item">
+                <div class="bar-rail">
+                  <div class="bar-fill" :style="{ height: series.percent + '%', background: series.color }"></div>
+                </div>
+                <span class="bar-count">{{ series.count }}</span>
+                <small>{{ series.label }} • {{ series.percent }}%</small>
+              </div>
+            </div>
+            <p class="chart-foot">Total {{ totalTransactions }} transaksi tercatat</p>
+          </div>
         </div>
       </section>
 
@@ -205,7 +296,6 @@ onMounted(fetchAdminData)
               <p class="eyebrow">Transaksi terbaru</p>
               <h3>Alur pembayaran</h3>
             </div>
-            <button type="button" class="ghost-btn" @click="fetchAdminData">Refresh</button>
           </div>
           <div class="table-wrapper">
             <table>
@@ -325,6 +415,18 @@ onMounted(fetchAdminData)
   letter-spacing: -0.02em;
 }
 
+.with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.with-icon img {
+  width: 26px;
+  height: 26px;
+  color: var(--primary);
+}
+
 .sub {
   margin: 0;
   color: var(--muted);
@@ -386,30 +488,86 @@ onMounted(fetchAdminData)
   font-size: 0.9rem;
 }
 
-.stat-grid {
+.helper {
+  margin: 0.35rem 0 0;
+  font-size: 0.92rem;
+}
+
+.insight-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 0.9rem;
 }
 
-.stat-card {
+.insight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.insight-row {
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 1rem;
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.insight-row strong {
+  font-size: 1.05rem;
+}
+
+.chart-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.85rem;
   background: linear-gradient(135deg, var(--surface), var(--surface-alt));
-  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.stat-card h3 {
-  margin: 0.25rem 0 0;
+.chart-bars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.8rem;
+  align-items: end;
 }
 
-.stat-card.alt {
-  background: linear-gradient(135deg, var(--primary-contrast), var(--surface));
+.bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
 }
 
-.stat-card.warn {
-  background: linear-gradient(135deg, rgba(242, 108, 45, 0.08), var(--surface));
+.bar-rail {
+  width: 100%;
+  height: 150px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  align-items: flex-end;
+  padding: 0.25rem;
+}
+
+.bar-fill {
+  width: 100%;
+  border-radius: 10px;
+  transition: height 0.2s ease;
+}
+
+.bar-count {
+  font-weight: 800;
+}
+
+.chart-foot {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .panel-grid {
@@ -725,6 +883,10 @@ th {
 
 @media (max-width: 960px) {
   .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .insight-grid {
     grid-template-columns: 1fr;
   }
 
