@@ -45,6 +45,8 @@ model User {
   memberships   UserMembership[]
   transactions  Transaction[]
   classBookings ClassBooking[]
+  updatedGymClasses GymClass[] @relation("GymClassUpdatedBy")
+  adminLogs     AdminLog[]
 }
 
 model Role {
@@ -137,6 +139,8 @@ model GymClass {
   updatedAt   DateTime        @updatedAt
 
   bookings ClassBooking[]
+  updatedBy   User? @relation("GymClassUpdatedBy", fields: [updatedById], references: [id])
+  updatedById Int?
 }
 
 model ClassBooking {
@@ -153,6 +157,17 @@ model ClassBooking {
   classId  Int
 
   @@unique([userId, classId])
+}
+
+model AdminLog {
+  id        Int      @id @default(autoincrement())
+  entity    String
+  entityId  Int?
+  action    String
+  details   Json?
+  createdAt DateTime @default(now())
+  admin     User?    @relation(fields: [adminId], references: [id])
+  adminId   Int?
 }
 
 model PromoCode {

@@ -170,7 +170,7 @@ const fetchAdminData = async () => {
 
     metrics.value = metricsRes.data
     users.value = usersRes.data
-    transactions.value = txRes.data
+    transactions.value = txRes.data?.data || txRes.data || []
     packages.value = packagesRes.data
   } catch (err: any) {
     error.value = err?.response?.data?.message || 'Gagal memuat data admin.'

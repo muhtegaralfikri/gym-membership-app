@@ -7,6 +7,9 @@ import {
   UseGuards,
   Req,
   Get, // <-- 1. Import Get
+  Query,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
 import { TransactionsService } from './transactions.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
@@ -23,7 +26,7 @@ import {
   ApiOkResponse, // <-- 2. Import ApiOkResponse
   ApiForbiddenResponse, // <-- 3. Import ApiForbiddenResponse
 } from '@nestjs/swagger';
-import { Request } from 'express';
+import type { Request, Response } from 'express';
 import { UserResponseDto } from 'src/users/dto/user-response.dto';
 
 // --- 4. Import dependensi untuk Admin ---
@@ -98,7 +101,32 @@ export class TransactionsController {
   @ApiOkResponse({ description: 'All transactions retrieved.' })
   @ApiForbiddenResponse({ description: 'Forbidden.' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized.' })
-  findAllTransactions() {
-    return this.transactionsService.findAllTransactions();
+  findAllTransactions(
+    @Query('status') status?: 'pending' | 'success' | 'failed',
+    @Query('search') search?: string,
+    @Query('page') page = '1',
+    @Query('limit') limit = '20',
+  ) {
+    const take = Math.min(Number(limit) || 20, 100);
+    const currentPage = Math.max(Number(page) || 1, 1);
+    const skip = (currentPage - 1) * take;
+    return this.transactionsService.findAllTransactions({ status, search, skip, take });
+  }
+
+  @Get('admin/transactions/export')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export all transaction history as CSV (Admin Only)' })
+  @ApiOkResponse({ description: 'CSV stream' })
+  async exportTransactions(
+    @Res({ passthrough: true }) res: Response,
+    @Query('status') status?: 'pending' | 'success' | 'failed',
+    @Query('search') search?: string,
+  ): Promise<StreamableFile> {
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="transactions.csv"');
+    const csv = await this.transactionsService.exportTransactionsCsv({ status, search });
+    return new StreamableFile(Buffer.from(csv), { type: 'text/csv' });
   }
 }
