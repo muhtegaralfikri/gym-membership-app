@@ -83,6 +83,7 @@ watch(
       <div class="navbar-links" :class="{ open: menuOpen }">
         <RouterLink to="/" @click="closeMenu">Beranda</RouterLink>
         <RouterLink to="/packages" @click="closeMenu">Lihat Paket</RouterLink>
+        <RouterLink to="/classes" @click="closeMenu">Jadwal Kelas</RouterLink>
 
         <template v-if="authStore.isAuthenticated">
           <div v-if="authStore.isAdmin" class="admin-menu" :class="{ open: adminMenuOpen }">

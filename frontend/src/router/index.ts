@@ -13,6 +13,8 @@ import HomeView from '../views/HomeView.vue'
 import AdminDashboard from '../views/AdminDashboard.vue'
 import AdminPackagesView from '../views/AdminPackagesView.vue'
 import AdminUsersView from '../views/AdminUsersView.vue'
+import ClassesView from '../views/ClassesView.vue'
+import CheckinView from '../views/CheckinView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -63,6 +65,16 @@ const router = createRouter({
       path: '/packages',
       name: 'packages',
       component: PackagesView,
+    },
+    {
+      path: '/classes',
+      name: 'classes',
+      component: ClassesView,
+    },
+    {
+      path: '/checkin',
+      name: 'checkin',
+      component: CheckinView,
     },
   ],
   scrollBehavior(to, _from, savedPosition) {
