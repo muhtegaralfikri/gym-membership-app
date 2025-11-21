@@ -557,23 +557,26 @@ const handleBuy = async (packageId: number) => {
 }
 
 .promo-apply {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   gap: 0.5rem;
-  align-items: center;
+  align-items: stretch;
   margin: 0.35rem 0 0.2rem;
+  width: 100%;
 }
 
 .promo-apply input {
-  flex: 1;
   padding: 0.55rem 0.65rem;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface-alt);
+  min-width: 0; /* allow shrinking on small screens */
 }
 
 .promo-apply .ghost-btn {
   border-radius: 10px;
   padding: 0.55rem 0.7rem;
+  white-space: nowrap;
 }
 
 .ghost-btn {
@@ -603,6 +606,17 @@ button {
   }
   .hero-art {
     justify-items: start;
+  }
+}
+
+@media (max-width: 520px) {
+  .promo-apply {
+    grid-template-columns: 1fr;
+  }
+  .promo-apply .ghost-btn {
+    width: 100%;
+    justify-self: stretch;
+    text-align: center;
   }
 }
 </style>
