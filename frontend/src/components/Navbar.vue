@@ -94,6 +94,7 @@ watch(
             <div v-if="adminMenuOpen" class="admin-dropdown">
               <RouterLink to="/admin" @click="handleAdminNav">Dashboard</RouterLink>
               <RouterLink to="/admin-packages" @click="handleAdminNav">Kelola paket</RouterLink>
+              <RouterLink to="/admin-classes" @click="handleAdminNav">Kelola kelas</RouterLink>
               <RouterLink to="/admin-users" @click="handleAdminNav">Kelola pengguna</RouterLink>
             </div>
           </div>
