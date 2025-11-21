@@ -111,6 +111,7 @@ onMounted(async () => {
         <div class="cta">
           <RouterLink class="solid" :to="primaryCta">{{ primaryLabel }}</RouterLink>
           <RouterLink class="ghost" to="/packages">Lihat Paket</RouterLink>
+          <RouterLink class="ghost alt" to="/classes">Booking Kelas</RouterLink>
         </div>
         <div class="trust">
           <span>{{ trustCopy }}</span>

@@ -11,6 +11,7 @@ import { MembershipsModule } from './memberships/memberships.module';
 import { PaymentsModule } from './payments/payments.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { PromosModule } from './promos/promos.module';
+import { ClassesModule } from './classes/classes.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { PromosModule } from './promos/promos.module';
     PaymentsModule, // <-- 4. Dan ini (tambahkan jika belum ada)
     MetricsModule,
     PromosModule,
+    ClassesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
