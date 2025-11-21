@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -15,6 +15,8 @@ interface GymClass {
   capacity: number
   availableSlots?: number
 }
+
+type ClassStatus = 'upcoming' | 'ongoing' | 'finished'
 
 interface ClassBooking {
   id: number
@@ -90,6 +92,35 @@ const checkinLink = (booking: ClassBooking) =>
 const checkinQr = (booking: ClassBooking) =>
   `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(checkinLink(booking))}`
 
+const decoratedClasses = computed(() => {
+  const now = Date.now()
+  return classes.value.map((cls) => {
+    const start = new Date(cls.startTime).getTime()
+    const end = new Date(cls.endTime).getTime()
+    let status: ClassStatus = 'upcoming'
+    if (now >= end) status = 'finished'
+    else if (now >= start) status = 'ongoing'
+    return { ...cls, status }
+  })
+})
+
+const remainingSlots = (cls: GymClass & { status: ClassStatus }) =>
+  Math.max(0, (typeof cls.availableSlots === 'number' ? cls.availableSlots : cls.capacity || 0))
+
+const visibleClasses = computed(() => decoratedClasses.value.filter((cls) => cls.status !== 'finished'))
+
+const statusLabel = (status: ClassStatus) => {
+  if (status === 'ongoing') return 'Sedang berlangsung'
+  if (status === 'finished') return 'Selesai'
+  return 'Akan datang'
+}
+
+const isButtonDisabled = (cls: GymClass & { status: ClassStatus }) =>
+  remainingSlots(cls) === 0
+
+const bookingCta = (cls: GymClass & { status: ClassStatus }) =>
+  remainingSlots(cls) === 0 ? 'Penuh' : 'Booking'
+
 onMounted(fetchData)
 </script>
 
@@ -139,29 +170,35 @@ onMounted(fetchData)
           <div class="skeleton-card" v-for="n in 3" :key="n"></div>
         </div>
         <div v-else-if="!classes.length" class="empty">Belum ada jadwal kelas.</div>
+        <div v-else-if="!visibleClasses.length" class="empty">Semua jadwal sudah selesai.</div>
         <div v-else class="class-list">
-          <article v-for="cls in classes" :key="cls.id" class="class-card">
+          <article v-for="cls in visibleClasses" :key="cls.id" class="class-card">
             <div class="class-meta">
-              <div>
-                <p class="eyebrow">{{ formatDateTime(cls.startTime) }}</p>
-                <h4>{{ cls.title }}</h4>
-                <p v-if="cls.description" class="muted">{{ cls.description }}</p>
+              <div class="class-head">
+                <div>
+                  <p class="eyebrow">{{ formatDateTime(cls.startTime) }}</p>
+                  <h4>{{ cls.title }}</h4>
+                  <p v-if="cls.description" class="muted">{{ cls.description }}</p>
+                </div>
+                <span class="status-badge" :class="cls.status">{{ statusLabel(cls.status) }}</span>
               </div>
-              <div class="tags">
-                <span class="badge">{{ cls.availableSlots ?? cls.capacity }} slot</span>
+              <div class="meta-row">
+                <span class="badge">{{ remainingSlots(cls) }} slot</span>
                 <span v-if="cls.instructor" class="pill tiny">Instruktur: {{ cls.instructor }}</span>
                 <span v-if="cls.location" class="pill tiny alt">Lokasi: {{ cls.location }}</span>
               </div>
             </div>
             <div class="actions">
               <button
+                v-if="cls.status === 'upcoming'"
                 type="button"
-                :disabled="(cls.availableSlots ?? cls.capacity) === 0"
+                :disabled="isButtonDisabled(cls)"
                 @click="bookClass(cls.id)"
                 class="book-btn"
               >
-                {{ (cls.availableSlots ?? cls.capacity) === 0 ? 'Penuh' : 'Booking' }}
+                {{ bookingCta(cls) }}
               </button>
+              <span v-else class="muted tiny ongoing-note">Sudah dimulai</span>
             </div>
           </article>
         </div>
@@ -311,15 +348,35 @@ section.card {
 }
 .class-meta {
   display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.class-head {
+  display: flex;
   justify-content: space-between;
   gap: 0.75rem;
   align-items: flex-start;
 }
-.tags {
+.meta-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.status-badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.status-badge.ongoing {
+  background: #fff3cd;
+  color: #b26b00;
+}
+.status-badge.finished {
+  background: #f4f7fb;
+  color: #5b6476;
 }
 .pill.tiny,
 .pill.tiny.alt {
@@ -342,11 +399,28 @@ section.card {
 .actions {
   margin-top: 0.75rem;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+.ongoing-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 10px;
+  background: var(--surface-alt);
 }
 .book-btn[disabled] {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 1;
+  background: #d9e2ec;
+  color: #6c7687;
+  border-color: #d9e2ec;
+  box-shadow: none;
+  transform: none;
+}
+.book-btn[disabled]:hover {
+  opacity: 1;
+  transform: none;
 }
 .booking-head {
   display: flex;
