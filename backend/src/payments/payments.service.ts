@@ -11,7 +11,7 @@ import { MembershipsService } from 'src/memberships/memberships.service';
 import { PaymentNotificationDto } from './dto/payment-notification.dto';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const midtransClient = require('midtrans-client');
-import { MembershipStatus, PaymentStatus, Prisma } from '@prisma/client';
+import { MembershipStatus, PaymentStatus } from '@prisma/client';
 import { computeMidtransSignature } from './utils/midtrans-signature';
 import { PENDING_TTL_MS } from './constants';
 import { NotificationsService } from 'src/notifications/notifications.service';
@@ -88,7 +88,7 @@ export class PaymentsService {
         where: { id: transaction.id },
         data: {
           status: PaymentStatus.failed,
-          paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+          paymentGatewayResponse: JSON.stringify(dto),
         },
       });
       return { message: 'Transaction expired and marked as failed.' };
@@ -104,7 +104,7 @@ export class PaymentsService {
               where: { id: transaction.id },
               data: {
                 status: PaymentStatus.success,
-                paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+                paymentGatewayResponse: JSON.stringify(dto),
               },
             });
 
@@ -165,7 +165,7 @@ export class PaymentsService {
         where: { id: transaction.id },
         data: {
           status: PaymentStatus.pending,
-          paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+          paymentGatewayResponse: JSON.stringify(dto),
         },
       });
       return { message: 'Transaction is challenged and pending manual review.' };
@@ -174,7 +174,7 @@ export class PaymentsService {
         where: { id: transaction.id },
         data: {
           status: PaymentStatus.failed,
-          paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+          paymentGatewayResponse: JSON.stringify(dto),
         },
       });
       return { message: 'Transaction denied by bank.' };
@@ -187,7 +187,7 @@ export class PaymentsService {
         where: { id: transaction.id },
         data: {
           status: PaymentStatus.failed,
-          paymentGatewayResponse: dto as unknown as Prisma.InputJsonValue,
+          paymentGatewayResponse: JSON.stringify(dto),
         },
       });
       return { message: 'Transaction marked as failed.' };
@@ -222,11 +222,11 @@ export class PaymentsService {
         where: { id: transactionId },
         data: {
           status: PaymentStatus.failed,
-          paymentGatewayResponse: {
-            ...(transaction.paymentGatewayResponse as Prisma.InputJsonObject),
+          paymentGatewayResponse: JSON.stringify({
+            ...(this.safeParseJson(transaction.paymentGatewayResponse) ?? {}),
             adminAction: 'refund',
             adminActionAt: now.toISOString(),
-          } as Prisma.InputJsonValue,
+          }),
         },
       });
 
@@ -325,6 +325,15 @@ export class PaymentsService {
         '[notifications] gagal mengirim sebagian:',
         failures.map((f) => (f as PromiseRejectedResult).reason),
       );
+    }
+  }
+
+  private safeParseJson(value: unknown) {
+    if (!value || typeof value !== 'string') return null;
+    try {
+      return JSON.parse(value);
+    } catch (_err) {
+      return null;
     }
   }
 }
