@@ -229,12 +229,16 @@ onMounted(fetchClasses)
         <p class="muted">Buat jadwal, kapasitas, dan lihat slot tersedia.</p>
       </div>
       <div class="actions">
-        <select v-model="statusFilter">
-          <option value="all">Semua status</option>
-          <option value="upcoming">Akan datang</option>
-          <option value="ongoing">Berlangsung</option>
-          <option value="finished">Selesai</option>
-        </select>
+        <label class="form-field inline">
+          <div class="select-wrapper">
+            <select v-model="statusFilter">
+              <option value="all">Semua status</option>
+              <option value="upcoming">Akan datang</option>
+              <option value="ongoing">Berlangsung</option>
+              <option value="finished">Selesai</option>
+            </select>
+          </div>
+        </label>
         <button type="button" class="ghost-btn" @click="fetchClasses">Refresh</button>
       </div>
     </div>
@@ -393,11 +397,35 @@ onMounted(fetchClasses)
   align-items: center;
   gap: 0.5rem;
 }
+.actions .form-field.inline {
+  flex-direction: column;
+  gap: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+.actions .select-wrapper {
+  position: relative;
+  display: inline-flex;
+  width: 160px;
+}
 .actions select {
-  padding: 0.35rem 0.5rem;
-  border-radius: 8px;
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
+  color: var(--text);
+  appearance: none;
+}
+.actions .select-wrapper::after {
+  content: '▾';
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+  font-size: 0.85rem;
 }
 .eyebrow {
   margin: 0;
@@ -411,7 +439,8 @@ onMounted(fetchClasses)
 }
 .grid {
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
+  /* Lebarkan kolom form supaya input tidak terasa sempit */
+  grid-template-columns: minmax(520px, 1.3fr) minmax(380px, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -438,11 +467,12 @@ onMounted(fetchClasses)
 .form-field select,
 .form-field textarea {
   width: 100%;
-  padding: 0.55rem 0.65rem;
+  padding: 0.7rem 0.8rem;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+  font-size: 1rem;
 }
 .form-field.full {
   grid-column: 1 / -1;
