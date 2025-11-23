@@ -12,6 +12,8 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { NotificationsService } from 'src/notifications/notifications.service';
 import { AvailabilitySlotDto } from './dto/schedule-availability.dto';
+import { CreateTrainerDto } from './dto/create-trainer.dto';
+import { UpdateTrainerDto } from './dto/update-trainer.dto';
 
 @Injectable()
 export class TrainersService {
@@ -22,6 +24,63 @@ export class TrainersService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
   ) {}
+
+  async createTrainerProfile(dto: CreateTrainerDto) {
+    const user = await this.prisma.user.findUnique({ where: { id: dto.userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const existing = await this.prisma.trainerProfile.findUnique({ where: { userId: dto.userId } });
+    if (existing) {
+      throw new BadRequestException('Trainer profile already exists for this user');
+    }
+
+    const profile = await this.prisma.trainerProfile.create({
+      data: {
+        userId: dto.userId,
+        specialties: dto.specialties,
+        bio: dto.bio,
+        rate: dto.rate ?? null,
+        rating: dto.rating ?? 5.0,
+      },
+    });
+
+    return profile;
+  }
+
+  async updateTrainerProfile(userId: number, dto: UpdateTrainerDto) {
+    const profile = await this.prisma.trainerProfile.findUnique({ where: { userId } });
+    if (!profile) {
+      throw new NotFoundException('Trainer profile not found');
+    }
+
+    return this.prisma.trainerProfile.update({
+      where: { id: profile.id },
+      data: {
+        specialties: dto.specialties ?? profile.specialties,
+        bio: dto.bio ?? profile.bio,
+        rate: dto.rate ?? profile.rate,
+        rating: dto.rating ?? profile.rating,
+      },
+    });
+  }
+
+  async deleteTrainerProfile(userId: number) {
+    const profile = await this.prisma.trainerProfile.findUnique({
+      where: { userId },
+    });
+    if (!profile) {
+      throw new NotFoundException('Trainer profile not found');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.trainerAvailability.deleteMany({ where: { trainerId: profile.id } });
+      await tx.trainerProfile.delete({ where: { id: profile.id } });
+    });
+
+    return { message: 'Trainer profile removed' };
+  }
 
   async findAllTrainers() {
     return this.prisma.user.findMany({
