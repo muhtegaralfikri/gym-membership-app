@@ -10,6 +10,12 @@ interface AdminUser {
   isActive?: boolean
   roleId: number
   createdAt: string
+  trainerProfile?: {
+    specialties: string
+    bio: string
+    rate?: number | null
+    rating?: number | null
+  } | null
 }
 
 const users = ref<AdminUser[]>([])
@@ -29,6 +35,10 @@ const emptyUserForm = () => ({
   roleId: 2,
   password: '',
   isActive: true,
+  isTrainer: false,
+  specialties: '',
+  bio: '',
+  rate: null as number | null,
 })
 
 const userForm = ref(emptyUserForm())
@@ -64,6 +74,10 @@ const startEditUser = (user: AdminUser) => {
     roleId: user.roleId,
     password: '',
     isActive: user.isActive ?? true,
+    isTrainer: !!user.trainerProfile,
+    specialties: user.trainerProfile?.specialties || '',
+    bio: user.trainerProfile?.bio || '',
+    rate: user.trainerProfile?.rate ?? null,
   }
   userFormError.value = ''
   message.value = ''
@@ -115,6 +129,7 @@ const submitUserForm = async () => {
       payload.isActive = userForm.value.isActive
       await api.put(`/admin/users/${userForm.value.id}`, payload)
       successMessage = 'Data user diperbarui.'
+      await syncTrainerProfile(userForm.value)
     } else {
       if (!userForm.value.password || userForm.value.password.length < 8) {
         userFormError.value = 'Password minimal 8 karakter.'
@@ -140,6 +155,36 @@ const submitUserForm = async () => {
 }
 
 const roleLabel = (roleId: number) => (roleId === 1 ? 'Admin' : 'Member')
+
+const syncTrainerProfile = async (form: typeof userForm.value) => {
+  if (!form.id) return
+  if (form.isTrainer) {
+    await api.post('/admin/trainers', {
+      userId: form.id,
+      specialties: form.specialties,
+      bio: form.bio,
+      rate: form.rate ?? undefined,
+    }).catch(async (err: any) => {
+      if (err?.response?.status === 400 && err.response.data?.message?.includes('already exists')) {
+        await api.post(`/admin/trainers/${form.id}/update`, {
+          specialties: form.specialties,
+          bio: form.bio,
+          rate: form.rate ?? undefined,
+        })
+        return
+      }
+      throw err
+    })
+  } else {
+    if (form.specialties || form.bio || form.rate !== null) {
+      try {
+        await api.post(`/admin/trainers/${form.id}/delete`)
+      } catch (_err) {
+        // optional delete failure ignored
+      }
+    }
+  }
+}
 
 onMounted(fetchUsers)
 </script>
@@ -221,11 +266,29 @@ onMounted(fetchUsers)
               required
             />
           </label>
-          <label v-else class="form-field checkbox">
-            <input v-model="userForm.isActive" type="checkbox" />
-            <span>Aktifkan akun</span>
-          </label>
-        </div>
+        <label v-else class="form-field checkbox">
+          <input v-model="userForm.isActive" type="checkbox" />
+          <span>Aktifkan akun</span>
+        </label>
+
+        <label class="form-field checkbox">
+          <input v-model="userForm.isTrainer" type="checkbox" />
+          <span>Jadikan Trainer</span>
+        </label>
+
+        <label v-if="userForm.isTrainer" class="form-field">
+          <span>Specialties</span>
+          <input v-model="userForm.specialties" type="text" placeholder="e.g. Strength & Mobility" />
+        </label>
+        <label v-if="userForm.isTrainer" class="form-field">
+          <span>Bio</span>
+          <input v-model="userForm.bio" type="text" placeholder="Deskripsi singkat" />
+        </label>
+        <label v-if="userForm.isTrainer" class="form-field">
+          <span>Rate (opsional)</span>
+          <input v-model.number="userForm.rate" type="number" min="0" placeholder="0" />
+        </label>
+      </div>
         <div class="form-actions">
           <button type="submit" :disabled="savingUser">
             {{ savingUser ? 'Menyimpan...' : isEditingUser ? 'Perbarui User' : 'Tambah User' }}
@@ -239,20 +302,25 @@ onMounted(fetchUsers)
         <table>
           <thead>
             <tr>
-              <th>Nama</th>
-              <th>Email</th>
-              <th>Role</th>
-              <th>Status</th>
-              <th>Dibuat</th>
-              <th>Aksi</th>
-            </tr>
-          </thead>
+            <th>Nama</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Trainer</th>
+            <th>Status</th>
+            <th>Dibuat</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
           <tbody>
             <tr v-for="user in users" :key="user.id">
               <td>{{ user.name }}</td>
               <td class="mono">{{ user.email }}</td>
               <td>
                 <span class="badge" :class="{ admin: user.roleId === 1 }">{{ roleLabel(user.roleId) }}</span>
+              </td>
+              <td>
+                <span v-if="user.trainerProfile" class="badge trainer">Trainer</span>
+                <span v-else class="muted">-</span>
               </td>
               <td>
                 <span :class="['status', user.isActive ? 'success' : 'failed']">

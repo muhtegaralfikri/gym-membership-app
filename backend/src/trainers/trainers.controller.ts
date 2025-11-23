@@ -21,6 +21,8 @@ import { Roles } from 'src/auth/decorators/roles.decorator';
 import { Role } from 'src/auth/enums/role.enum';
 import type { Request } from 'express';
 import { UserResponseDto } from 'src/users/dto/user-response.dto';
+import { CreateTrainerDto } from './dto/create-trainer.dto';
+import { UpdateTrainerDto } from './dto/update-trainer.dto';
 
 @ApiTags('Trainers')
 @Controller()
@@ -71,6 +73,36 @@ export class TrainersController {
   @ApiOperation({ summary: 'Upcoming PT sessions for current member' })
   mySessions(@Req() req: Request & { user: UserResponseDto }) {
     return this.trainersService.findMemberSessions(req.user.id);
+  }
+
+  @Post('admin/trainers')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create trainer profile for an existing user (Admin)' })
+  createTrainer(@Body() dto: CreateTrainerDto) {
+    return this.trainersService.createTrainerProfile(dto);
+  }
+
+  @Post('admin/trainers/:userId/update')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update trainer profile (Admin)' })
+  updateTrainer(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() dto: UpdateTrainerDto,
+  ) {
+    return this.trainersService.updateTrainerProfile(userId, dto);
+  }
+
+  @Post('admin/trainers/:userId/delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete trainer profile (Admin)' })
+  deleteTrainer(@Param('userId', ParseIntPipe) userId: number) {
+    return this.trainersService.deleteTrainerProfile(userId);
   }
 
   @Post('trainers/schedule')
