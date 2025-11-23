@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString } from 'class-validator';
 
 export class CheckinDto {
-  @ApiProperty({ example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  @ApiProperty({ example: '42.123456.vYvQngm9GkDoG68y6aX5XJ3hL5u_r22eJd5OyiI3bRk' })
   @IsString()
   @IsNotEmpty()
   code!: string;

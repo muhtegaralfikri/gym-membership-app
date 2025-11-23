@@ -37,7 +37,7 @@ onMounted(submit)
   <div class="checkin-page">
     <div class="card">
       <p class="eyebrow">Check-in Kelas</p>
-      <h2>Memverifikasi kode...</h2>
+      <h2>Memverifikasi token...</h2>
       <p v-if="message" class="message" :class="{ success: status === 'success', error: status === 'error' }">
         {{ message }}
       </p>
