@@ -2,10 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma, BookingStatus } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateClassDto } from './dto/create-class.dto';
-import { randomUUID } from 'crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 @Injectable()
 export class ClassesService {
+  private readonly tokenWindowSeconds = 30;
+  private readonly allowedDriftWindows = 1;
+
   constructor(private prisma: PrismaService) {}
 
   private async logAdminAction(
@@ -29,6 +32,59 @@ export class ClassesService {
     } catch (_err) {
       // logging best-effort
     }
+  }
+
+  private generateCheckinSecret() {
+    return randomBytes(20).toString('hex');
+  }
+
+  private getTimeWindow(date = new Date()) {
+    return Math.floor(date.getTime() / (this.tokenWindowSeconds * 1000));
+  }
+
+  private signTokenPayload(bookingId: number, window: number, secret: string) {
+    return createHmac('sha256', secret).update(`${bookingId}.${window}`).digest('base64url');
+  }
+
+  private buildCheckinToken(bookingId: number, secret: string, date = new Date()) {
+    const window = this.getTimeWindow(date);
+    const signature = this.signTokenPayload(bookingId, window, secret);
+    return { token: `${bookingId}.${window}.${signature}`, window };
+  }
+
+  private verifyToken(token: string, secret: string) {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const [bookingIdPart, windowPart, signature] = parts;
+
+    const bookingId = Number(bookingIdPart);
+    const window = Number(windowPart);
+    if (!Number.isInteger(bookingId) || !Number.isInteger(window) || window < 0) return null;
+
+    const currentWindow = this.getTimeWindow();
+    if (Math.abs(currentWindow - window) > this.allowedDriftWindows) return null;
+
+    const expectedSignature = this.signTokenPayload(bookingId, window, secret);
+    if (expectedSignature.length !== signature.length) return null;
+
+    const isMatch = timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature));
+    if (!isMatch) return null;
+
+    return { bookingId, window };
+  }
+
+  private stripSecretAndAttachToken<T extends { id: number; checkinSecret?: string }>(
+    booking: T,
+    issuedAt = new Date(),
+  ) {
+    if (!booking?.checkinSecret) return booking as Omit<T, 'checkinSecret'>;
+    const { token } = this.buildCheckinToken(booking.id, booking.checkinSecret, issuedAt);
+    const { checkinSecret, ...rest } = booking as any;
+    return {
+      ...rest,
+      checkinToken: token,
+      tokenExpiresIn: this.tokenWindowSeconds,
+    };
   }
 
   private computeStatus(cls: { startTime: Date; endTime: Date }) {
@@ -143,11 +199,13 @@ export class ClassesService {
   }
 
   async findUserBookings(userId: number) {
-    return this.prisma.classBooking.findMany({
+    const data = await this.prisma.classBooking.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
       include: { gymClass: true },
     });
+
+    return data.map((booking) => this.stripSecretAndAttachToken(booking));
   }
 
   async bookClass(classId: number, userId: number) {
@@ -189,27 +247,41 @@ export class ClassesService {
       throw new BadRequestException('Kamu sudah terdaftar di kelas ini.');
     }
 
-    const checkinCode = randomUUID();
+    const checkinSecret = this.generateCheckinSecret();
 
-    return this.prisma.classBooking.create({
+    const booking = await this.prisma.classBooking.create({
       data: {
         userId,
         classId,
         status: BookingStatus.booked,
-        checkinCode,
+        checkinSecret,
       },
       include: { gymClass: true },
     });
+
+    return this.stripSecretAndAttachToken(booking);
   }
 
   async checkinByCode(code: string) {
+    const [bookingIdPart, windowPart] = code.split('.');
+    const bookingId = Number(bookingIdPart);
+    const window = Number(windowPart);
+    if (!Number.isInteger(bookingId) || !Number.isInteger(window)) {
+      throw new NotFoundException('Kode check-in tidak valid atau kedaluwarsa.');
+    }
+
     const booking = await this.prisma.classBooking.findUnique({
-      where: { checkinCode: code },
+      where: { id: bookingId },
       include: { gymClass: true, user: true },
     });
 
-    if (!booking) {
+    if (!booking || !booking.checkinSecret) {
       throw new NotFoundException('Kode check-in tidak valid.');
+    }
+
+    const verified = this.verifyToken(code, booking.checkinSecret);
+    if (!verified) {
+      throw new NotFoundException('Kode check-in tidak valid atau kedaluwarsa.');
     }
 
     if (booking.status === BookingStatus.cancelled) {
@@ -219,7 +291,7 @@ export class ClassesService {
     if (booking.status === BookingStatus.checked_in) {
       return {
         message: 'Sudah check-in.',
-        booking,
+        booking: this.stripSecretAndAttachToken(booking),
       };
     }
 
@@ -234,7 +306,7 @@ export class ClassesService {
 
     return {
       message: 'Check-in berhasil.',
-      booking: updated,
+      booking: this.stripSecretAndAttachToken(updated),
     };
   }
 
@@ -242,11 +314,13 @@ export class ClassesService {
     const gymClass = await this.prisma.gymClass.findUnique({ where: { id: classId } });
     if (!gymClass) throw new NotFoundException('Kelas tidak ditemukan.');
 
-    return this.prisma.classBooking.findMany({
+    const bookings = await this.prisma.classBooking.findMany({
       where: { classId },
       orderBy: { createdAt: 'desc' },
       include: { user: true },
     });
+
+    return bookings.map((booking) => this.stripSecretAndAttachToken(booking));
   }
 
   async cancelBooking(bookingId: number) {
@@ -254,7 +328,7 @@ export class ClassesService {
     if (!booking) throw new NotFoundException('Booking tidak ditemukan.');
 
     if (booking.status === BookingStatus.cancelled) {
-      return { message: 'Booking sudah dibatalkan.', booking };
+      return { message: 'Booking sudah dibatalkan.', booking: this.stripSecretAndAttachToken(booking) };
     }
 
     const updated = await this.prisma.classBooking.update({
@@ -262,7 +336,7 @@ export class ClassesService {
       data: { status: BookingStatus.cancelled },
     });
 
-    return { message: 'Booking dibatalkan.', booking: updated };
+    return { message: 'Booking dibatalkan.', booking: this.stripSecretAndAttachToken(updated) };
   }
 
   async forceCheckinBooking(bookingId: number) {
@@ -270,7 +344,7 @@ export class ClassesService {
     if (!booking) throw new NotFoundException('Booking tidak ditemukan.');
 
     if (booking.status === BookingStatus.checked_in) {
-      return { message: 'Sudah check-in.', booking };
+      return { message: 'Sudah check-in.', booking: this.stripSecretAndAttachToken(booking) };
     }
 
     const updated = await this.prisma.classBooking.update({
@@ -282,7 +356,7 @@ export class ClassesService {
       include: { user: true },
     });
 
-    return { message: 'Check-in berhasil.', booking: updated };
+    return { message: 'Check-in berhasil.', booking: this.stripSecretAndAttachToken(updated) };
   }
 
   async deleteClass(id: number, adminId?: number) {

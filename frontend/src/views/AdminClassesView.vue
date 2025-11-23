@@ -33,7 +33,7 @@ const bookings = ref<
     id: number
     status: string
     user?: { name?: string; email?: string }
-    checkinCode?: string
+    checkinToken?: string
     createdAt: string
     checkedInAt?: string | null
   }>
@@ -353,7 +353,7 @@ onMounted(fetchClasses)
             <div>
               <strong>{{ booking.user?.name || 'Tanpa nama' }}</strong>
               <p class="muted tiny">{{ booking.user?.email || '-' }}</p>
-              <p class="muted tiny">Kode: {{ booking.checkinCode || '-' }}</p>
+              <p class="muted tiny">Token (dinamis): {{ booking.checkinToken || '-' }}</p>
             </div>
             <div class="booking-actions">
               <span class="status-badge" :class="booking.status">{{ booking.status }}</span>

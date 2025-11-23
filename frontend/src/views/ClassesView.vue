@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter, RouterLink } from 'vue-router'
 import api from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
@@ -21,7 +21,8 @@ type ClassStatus = 'upcoming' | 'ongoing' | 'finished'
 interface ClassBooking {
   id: number
   status: string
-  checkinCode: string
+  checkinToken?: string
+  tokenExpiresIn?: number
   checkedInAt?: string | null
   gymClass: GymClass
 }
@@ -32,6 +33,8 @@ const loading = ref(true)
 const bookingMessage = ref('')
 const authStore = useAuthStore()
 const router = useRouter()
+const tokenRefreshTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const tokenRefreshMs = 25000
 
 const formatDateTime = (value: string) =>
   new Date(value).toLocaleString('id-ID', {
@@ -42,6 +45,34 @@ const formatDateTime = (value: string) =>
     minute: '2-digit',
   })
 
+const stopTokenRefresh = () => {
+  if (tokenRefreshTimer.value) {
+    clearInterval(tokenRefreshTimer.value)
+    tokenRefreshTimer.value = null
+  }
+}
+
+const refreshBookingTokens = async () => {
+  if (!authStore.isAuthenticated) {
+    stopTokenRefresh()
+    return
+  }
+  try {
+    const res = await api.get('/classes/bookings/me')
+    bookings.value = res.data
+  } catch {
+    // silent refresh failure; keep existing tokens
+  }
+}
+
+const startTokenRefresh = () => {
+  stopTokenRefresh()
+  if (!authStore.isAuthenticated) return
+  tokenRefreshTimer.value = setInterval(() => {
+    refreshBookingTokens()
+  }, tokenRefreshMs)
+}
+
 const fetchData = async () => {
   loading.value = true
   try {
@@ -51,6 +82,7 @@ const fetchData = async () => {
     ])
     classes.value = classRes.data
     bookings.value = bookingRes.data
+    startTokenRefresh()
   } catch {
     bookingMessage.value = 'Gagal memuat jadwal kelas.'
   } finally {
@@ -70,6 +102,7 @@ const bookClass = async (classId: number) => {
     bookingMessage.value = 'Booking berhasil! QR check-in sudah dibuat.'
     // prepend newest booking
     bookings.value = [res.data, ...bookings.value.filter((b) => b.id !== res.data.id)]
+    startTokenRefresh()
     classes.value = classes.value.map((cls) =>
       cls.id === classId
         ? {
@@ -87,10 +120,16 @@ const bookClass = async (classId: number) => {
 }
 
 const checkinLink = (booking: ClassBooking) =>
-  `${window.location.origin}/checkin?code=${encodeURIComponent(booking.checkinCode)}`
+  booking.checkinToken
+    ? `${window.location.origin}/checkin?code=${encodeURIComponent(booking.checkinToken)}`
+    : ''
 
-const checkinQr = (booking: ClassBooking) =>
-  `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(checkinLink(booking))}`
+const checkinQr = (booking: ClassBooking) => {
+  const link = checkinLink(booking)
+  return link
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(link)}`
+    : ''
+}
 
 const decoratedClasses = computed(() => {
   const now = Date.now()
@@ -122,6 +161,7 @@ const bookingCta = (cls: GymClass & { status: ClassStatus }) =>
   remainingSlots(cls) === 0 ? 'Penuh' : 'Booking'
 
 onMounted(fetchData)
+onBeforeUnmount(stopTokenRefresh)
 </script>
 
 <template>
@@ -227,11 +267,16 @@ onMounted(fetchData)
               <span class="badge">{{ bk.gymClass.location || 'Gym' }}</span>
             </div>
             <div class="qr-row">
-              <img :src="checkinQr(bk)" alt="QR Check-in" />
+              <div v-if="bk.checkinToken" class="qr-img">
+                <img :src="checkinQr(bk)" alt="QR Check-in" />
+              </div>
+              <div v-else class="qr-placeholder">
+                <span>Token belum tersedia</span>
+              </div>
               <div class="qr-copy">
-                <p class="muted tiny">Tunjukkan QR ini saat check-in.</p>
-                <code>{{ bk.checkinCode }}</code>
-                <a :href="checkinLink(bk)" target="_blank">Buka tautan check-in</a>
+                <p class="muted tiny">QR dinamis, berubah tiap ~30 detik untuk mencegah screenshot reuse.</p>
+                <code>{{ bk.checkinToken || 'Token tidak tersedia' }}</code>
+                <a v-if="checkinLink(bk)" :href="checkinLink(bk)" target="_blank">Buka tautan check-in</a>
               </div>
             </div>
           </article>
@@ -435,12 +480,24 @@ section.card {
   margin-top: 0.75rem;
   align-items: center;
 }
-.qr-row img {
+.qr-img img {
   width: 140px;
   height: 140px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: #fff;
+}
+.qr-placeholder {
+  width: 140px;
+  height: 140px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0.5rem;
 }
 .qr-copy {
   display: grid;
