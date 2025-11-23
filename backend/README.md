@@ -25,14 +25,12 @@
 
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-## Notifications (Email + WhatsApp)
+## Notifications (Email)
 
 Environment variables expected by the lightweight notification service:
 
 - `RESEND_API_KEY` — optional; set to enable email sends via Resend-compatible API.
 - `EMAIL_FROM` — sender email for outbound mails.
-- `WA_TOKEN` — WhatsApp Cloud API token.
-- `WA_PHONE_NUMBER_ID` — WhatsApp Cloud API phone number ID.
 - `FRONTEND_URL` — used for links in reminder emails.
 
 If a provider is not configured, the service will log a warning and skip that channel.
