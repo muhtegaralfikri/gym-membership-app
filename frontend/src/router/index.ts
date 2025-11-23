@@ -17,6 +17,7 @@ import AdminClassesView from '../views/AdminClassesView.vue'
 import AdminTransactionsView from '../views/AdminTransactionsView.vue'
 import ClassesView from '../views/ClassesView.vue'
 import CheckinView from '../views/CheckinView.vue'
+import TrainersView from '@/views/TrainersView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -84,6 +85,11 @@ const router = createRouter({
       path: '/classes',
       name: 'classes',
       component: ClassesView,
+    },
+    {
+      path: '/trainers',
+      name: 'trainers',
+      component: TrainersView,
     },
     {
       path: '/checkin',

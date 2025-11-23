@@ -84,6 +84,7 @@ watch(
         <RouterLink to="/" @click="closeMenu">Beranda</RouterLink>
         <RouterLink to="/packages" @click="closeMenu">Lihat Paket</RouterLink>
         <RouterLink to="/classes" @click="closeMenu">Jadwal Kelas</RouterLink>
+        <RouterLink to="/trainers" @click="closeMenu">Personal Trainer</RouterLink>
 
         <template v-if="authStore.isAuthenticated">
           <div v-if="authStore.isAdmin" class="admin-menu" :class="{ open: adminMenuOpen }">

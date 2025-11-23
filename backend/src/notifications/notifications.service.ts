@@ -1,23 +1,31 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-
-type EmailPayload = {
-  to: string;
-  subject: string;
-  html?: string;
-  text?: string;
-  from?: string;
-};
+import nodemailer, { Transporter } from 'nodemailer';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
-  private readonly emailApiKey?: string;
+  private readonly gmailUser?: string;
+  private readonly gmailPass?: string;
   private readonly emailFrom?: string;
+  private transporter?: Transporter;
 
   constructor(private readonly config: ConfigService) {
-    this.emailApiKey = this.config.get<string>('RESEND_API_KEY');
-    this.emailFrom = this.config.get<string>('EMAIL_FROM');
+    this.gmailUser = this.config.get<string>('GMAIL_USER');
+    this.gmailPass = this.config.get<string>('GMAIL_PASS');
+    this.emailFrom = this.config.get<string>('EMAIL_FROM') || this.gmailUser;
+
+    if (this.gmailUser && this.gmailPass) {
+      this.transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: this.gmailUser,
+          pass: this.gmailPass,
+        },
+      });
+    } else {
+      this.logger.warn('GMAIL_USER or GMAIL_PASS not set; emails will be skipped.');
+    }
   }
 
   /**
@@ -63,48 +71,20 @@ export class NotificationsService {
       .filter(Boolean)
       .join('\n');
 
-    const html = `
-      <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#f6f7fb; padding:24px; color:#0f172a;">
-        <div style="max-width:640px; margin:0 auto; background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; box-shadow:0 10px 30px rgba(15,23,42,0.08);">
-          <div style="background:linear-gradient(135deg,#0ea5e9,#6366f1); color:white; padding:20px 24px;">
-            <div style="font-size:14px; opacity:0.9;">Booking Kelas Berhasil</div>
-            <div style="font-size:22px; font-weight:700; margin-top:4px;">${payload.classTitle}</div>
-          </div>
-          <div style="padding:24px;">
-            <p style="margin:0 0 12px 0; font-size:15px;">Hai ${payload.userName},</p>
-            <p style="margin:0 0 16px 0; font-size:15px; line-height:1.6;">
-              Booking kelas kamu sudah dikonfirmasi. Simpan detail berikut dan datang 10 menit lebih awal untuk check-in.
-            </p>
-            <div style="border:1px solid #e2e8f0; border-radius:10px; padding:16px; background:#f8fafc;">
-              <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-weight:600; font-size:15px;">
-                <span>Jadwal</span>
-                <span style="text-align:right;">${startText}<br/>s.d. ${endText} WIB</span>
-              </div>
-              ${payload.location ? `<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:14px;"><span>Lokasi</span><span style="text-align:right;">${payload.location}</span></div>` : ''}
-              ${payload.instructor ? `<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:14px;"><span>Instruktur</span><span style="text-align:right;">${payload.instructor}</span></div>` : ''}
-              ${
-                payload.bookingId
-                  ? `<div style="display:flex; justify-content:space-between; font-size:13px; color:#475569;"><span>ID Booking</span><span>#${payload.bookingId}</span></div>`
-                  : ''
-              }
-            </div>
-            ${
-              actionUrl
-                ? `<div style="margin:18px 0 6px 0;">
-                    <a href="${actionUrl}" style="display:inline-block; background:#0ea5e9; color:white; padding:12px 18px; border-radius:10px; text-decoration:none; font-weight:600;">Lihat jadwal di aplikasi</a>
-                  </div>`
-                : ''
-            }
-            <p style="margin:12px 0 0 0; font-size:13px; color:#475569;">
-              Perlu ubah booking atau batal? Lakukan lewat aplikasi sebelum kelas dimulai.
-            </p>
-          </div>
-        </div>
-        <p style="text-align:center; font-size:12px; color:#94a3b8; margin-top:14px;">Email ini dikirim otomatis, balasan tidak dipantau.</p>
-      </div>
-    `;
+    const html = this.buildBookingConfirmationHtml({
+      heading: 'Booking Kelas Berhasil',
+      title: payload.classTitle,
+      subtitle: 'Jadwal kelas kamu sudah dikonfirmasi',
+      startText,
+      endText: `${endText} WIB`,
+      location: payload.location,
+      instructor: payload.instructor,
+      bookingId: payload.bookingId,
+      actionUrl,
+      footerNote: 'Perlu ubah booking atau batal? Lakukan lewat aplikasi sebelum kelas dimulai.',
+    });
 
-    return this.sendEmail({ to: payload.to, subject, html, text });
+    return this.sendEmail(payload.to, subject, text, html);
   }
 
   /**
@@ -141,82 +121,20 @@ export class NotificationsService {
       .filter(Boolean)
       .join('\n');
 
-    const html = `
-      <div style="font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f6f7fb;padding:24px;color:#0f172a;">
-        <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.08);">
-          <div style="background:linear-gradient(135deg,#22c55e,#0ea5e9);color:white;padding:20px 24px;">
-            <div style="font-size:14px;opacity:0.9;">Pembayaran Berhasil</div>
-            <div style="font-size:22px;font-weight:700;margin-top:4px;">${payload.packageName}</div>
-          </div>
-          <div style="padding:24px;">
-            <p style="margin:0 0 12px 0;font-size:15px;">Hai ${payload.userName},</p>
-            <p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;">
-              Pembayaran paket kamu sudah kami terima. Membership aktif dan siap dipakai. Simpan detail berikut sebagai bukti.
-            </p>
-            <div style="border:1px solid #e2e8f0;border-radius:10px;padding:16px;background:#f8fafc;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-weight:600;font-size:15px;">
-                <span>Paket</span><span style="text-align:right;">${payload.packageName}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px;">
-                <span>Aktif mulai</span><span style="text-align:right;">${startText}</span>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:14px;">
-                <span>Berlaku sampai</span><span style="text-align:right;">${endText}</span>
-              </div>
-            </div>
-            ${
-              actionUrl
-                ? `<div style="margin:18px 0 6px 0;">
-                    <a href="${actionUrl}" style="display:inline-block;background:#0ea5e9;color:white;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:600;">Lihat membership di aplikasi</a>
-                  </div>`
-                : ''
-            }
-            <p style="margin:12px 0 0 0;font-size:13px;color:#475569;">
-              Gunakan fitur check-in tepat waktu, dan pantau riwayat transaksi serta booking kelas via aplikasi.
-            </p>
-          </div>
-        </div>
-        <p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:14px;">Email ini dikirim otomatis, balasan tidak dipantau.</p>
-      </div>
-    `;
-
-    return this.sendEmail({ to: payload.to, subject, html, text });
-  }
-
-  /**
-   * Lightweight email sender using Resend-style HTTP API.
-   * Free tier friendly; replace endpoint if you use another provider.
-   */
-  async sendEmail(payload: EmailPayload) {
-    if (!this.emailApiKey || !(payload.from || this.emailFrom)) {
-      const reason = 'Email provider not configured (missing RESEND_API_KEY or EMAIL_FROM).';
-      this.logger.warn(reason);
-      return { ok: false, reason };
-    }
-
-    const endpoint = 'https://api.resend.com/emails';
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.emailApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: payload.from || this.emailFrom,
-        to: payload.to,
-        subject: payload.subject,
-        html: payload.html,
-        text: payload.text,
-      }),
+    const html = this.buildBookingConfirmationHtml({
+      heading: 'Pembayaran Berhasil',
+      title: payload.packageName,
+      subtitle: 'Membership kamu sudah aktif',
+      startText,
+      endText,
+      highlightLabel: 'Periode',
+      highlightValue: `${startText} s.d. ${endText}`,
+      actionUrl,
+      footerNote:
+        'Gunakan fitur check-in tepat waktu, dan pantau riwayat transaksi serta booking kelas via aplikasi.',
     });
 
-    if (!res.ok) {
-      const errorText = await res.text();
-      this.logger.error(`Email send failed: ${res.status} ${res.statusText} - ${errorText}`);
-      return { ok: false, reason: errorText };
-    }
-
-    return { ok: true };
+    return this.sendEmail(payload.to, subject, text, html);
   }
 
   /**
@@ -230,7 +148,111 @@ export class NotificationsService {
     const text = `Halo ${user.name}, paket membership Anda berakhir dalam ${daysLeft} hari. Gunakan kode SETIA10 untuk diskon.`;
 
     if (user.email) {
-      await this.sendEmail({ to: user.email, subject, html, text });
+      await this.sendEmail(user.email, subject, text, html);
     }
+  }
+
+  /**
+   * Send email using Gmail + Nodemailer.
+   */
+  async sendEmail(to: string, subject: string, text: string, html?: string) {
+    if (!this.transporter) {
+      const reason = 'Gmail transporter not configured; email skipped.';
+      this.logger.warn(reason);
+      return { ok: false, reason };
+    }
+
+    try {
+      await this.transporter.sendMail({
+        from: this.emailFrom,
+        to,
+        subject,
+        text,
+        html,
+      });
+      return { ok: true };
+    } catch (err) {
+      this.logger.error(`Email send failed: ${String(err)}`);
+      return { ok: false, reason: String(err) };
+    }
+  }
+
+  private buildBookingConfirmationHtml(params: {
+    heading: string;
+    title: string;
+    subtitle?: string;
+    startText: string;
+    endText: string;
+    location?: string | null;
+    instructor?: string | null;
+    bookingId?: number;
+    actionUrl?: string;
+    highlightLabel?: string;
+    highlightValue?: string;
+    footerNote?: string;
+  }) {
+    const infoRows = [
+      params.location
+        ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#475569;">Lokasi</span><span style="font-weight:600;">${params.location}</span>
+          </div>`
+        : '',
+      params.instructor
+        ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#475569;">Instruktur/Trainer</span><span style="font-weight:600;">${params.instructor}</span>
+          </div>`
+        : '',
+      params.bookingId
+        ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:#475569;">ID Booking</span><span style="font-weight:600;">#${params.bookingId}</span>
+          </div>`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('');
+
+    const highlight =
+      params.highlightLabel && params.highlightValue
+        ? `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;background:#f8fafc;margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;font-weight:600;">
+              <span>${params.highlightLabel}</span><span>${params.highlightValue}</span>
+            </div>
+          </div>`
+        : '';
+
+    const cta = params.actionUrl
+      ? `<a href="${params.actionUrl}" style="display:inline-block;margin-top:16px;background:#0ea5e9;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;">Lihat di aplikasi</a>`
+      : '';
+
+    return `
+      <div style="font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f6f7fb;padding:24px;color:#0f172a;">
+        <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 12px 36px rgba(15,23,42,0.08);">
+          <div style="background:linear-gradient(135deg,#0ea5e9,#6366f1);color:white;padding:20px 24px;">
+            <div style="font-size:13px;opacity:0.9;">${params.heading}</div>
+            <div style="font-size:22px;font-weight:800;margin-top:4px;">${params.title}</div>
+            ${params.subtitle ? `<div style="margin-top:6px;font-size:14px;opacity:0.9;">${params.subtitle}</div>` : ''}
+          </div>
+          <div style="padding:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <div>
+                <div style="font-size:13px;color:#64748b;">Mulai</div>
+                <div style="font-size:16px;font-weight:700;">${params.startText}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:13px;color:#64748b;">Sampai</div>
+                <div style="font-size:16px;font-weight:700;">${params.endText}</div>
+              </div>
+            </div>
+            ${infoRows}
+            ${highlight}
+            ${cta}
+            <p style="margin:18px 0 0 0;font-size:13px;color:#475569;">
+              ${params.footerNote || 'Simpan email ini dan datang tepat waktu.'}
+            </p>
+          </div>
+        </div>
+        <p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:14px;">Email ini dikirim otomatis, balasan tidak dipantau.</p>
+      </div>
+    `;
   }
 }
