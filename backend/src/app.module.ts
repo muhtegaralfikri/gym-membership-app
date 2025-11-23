@@ -13,6 +13,7 @@ import { MetricsModule } from './metrics/metrics.module';
 import { PromosModule } from './promos/promos.module';
 import { ClassesModule } from './classes/classes.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { TrainersModule } from './trainers/trainers.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     PromosModule,
     ClassesModule,
     NotificationsModule,
+    TrainersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

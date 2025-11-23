@@ -47,6 +47,9 @@ model User {
   classBookings ClassBooking[]
   updatedGymClasses GymClass[] @relation("GymClassUpdatedBy")
   adminLogs     AdminLog[]
+  trainerProfile   TrainerProfile?
+  sessionsAsTrainer PTSession[] @relation("TrainerSessions")
+  sessionsAsMember  PTSession[] @relation("MemberSessions")
 }
 
 model Role {
@@ -63,6 +66,7 @@ model Package {
   price        Decimal  @db.Decimal(10, 2)
   promoPrice   Decimal? @db.Decimal(10, 2)
   promoExpiresAt DateTime?
+  ptSessionsQuota Int    @default(0)
   bundleItems  Json?
   durationDays Int
   isActive     Boolean  @default(true)
@@ -124,6 +128,41 @@ enum MembershipStatus {
   upcoming // Dibeli saat paket lama masih aktif
   active   // Sedang berjalan
   expired  // Sudah lewat
+}
+
+model TrainerProfile {
+  id           Int      @id @default(autoincrement())
+  user         User     @relation(fields: [userId], references: [id])
+  userId       Int      @unique
+  specialties  String
+  bio          String
+  rate         Decimal? @db.Decimal(10, 2)
+  rating       Float    @default(5.0)
+
+  availabilities TrainerAvailability[]
+}
+
+model TrainerAvailability {
+  id        Int             @id @default(autoincrement())
+  trainer   TrainerProfile  @relation(fields: [trainerId], references: [id])
+  trainerId Int
+  dayOfWeek Int // 0-6
+  startTime String // "HH:mm"
+  endTime   String // "HH:mm"
+}
+
+model PTSession {
+  id              Int             @id @default(autoincrement())
+  trainer         User            @relation("TrainerSessions", fields: [trainerId], references: [id])
+  trainerId       Int
+  member          User            @relation("MemberSessions", fields: [memberId], references: [id])
+  memberId        Int
+  scheduledAt     DateTime
+  durationMinutes Int             @default(60)
+  status          PTSessionStatus @default(BOOKED)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
 
 model GymClass {
@@ -199,4 +238,11 @@ enum BookingStatus {
   booked
   checked_in
   cancelled
+}
+
+enum PTSessionStatus {
+  BOOKED
+  COMPLETED
+  CANCELLED
+  NOSHOW
 }
