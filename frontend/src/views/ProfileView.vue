@@ -236,12 +236,12 @@ onMounted(async () => {
           <div class="tx-status">
             <span :class="['pill', 'small', tx.status]">{{ tx.status }}</span>
             <p v-if="tx.status === 'pending'" class="tip">
-              Menunggu pembayaran atau review bank (challenge). Buka tautan Snap terbaru atau hubungi admin.
+              Menunggu konfirmasi. Buka Snap terbaru atau hubungi admin.
             </p>
             <p v-else-if="tx.status === 'failed'" class="tip">
               Gagal/berakhir. Buat transaksi baru jika masih ingin lanjut.
             </p>
-            <p v-else class="tip success">Pembayaran sukses, membership aktif.</p>
+            <p v-else class="tip success">Berhasil. Membership aktif.</p>
             <RouterLink v-if="tx.status === 'pending'" class="ghost-btn tiny" to="/packages">Lanjutkan Bayar</RouterLink>
           </div>
         </div>
@@ -473,6 +473,9 @@ onMounted(async () => {
   margin: 0;
   color: var(--muted);
   text-align: right;
+  max-width: 240px;
+  line-height: 1.35;
+  word-break: break-word;
 }
 .tip.success {
   color: var(--primary);
@@ -516,6 +519,11 @@ onMounted(async () => {
   .tx-status {
     align-items: flex-start;
     text-align: left;
+    max-width: 100%;
+  }
+  .tip {
+    text-align: left;
+    max-width: 100%;
   }
 }
 </style>
