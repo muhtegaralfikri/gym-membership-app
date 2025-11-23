@@ -3,13 +3,17 @@ import { Prisma, BookingStatus } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateClassDto } from './dto/create-class.dto';
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class ClassesService {
   private readonly tokenWindowSeconds = 30;
   private readonly allowedDriftWindows = 1;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   private async logAdminAction(
     action: string,
@@ -258,6 +262,25 @@ export class ClassesService {
       },
       include: { gymClass: true },
     });
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    });
+
+    if (user?.email) {
+      // Kirim email konfirmasi booking tanpa menghalangi response ke user.
+      void this.notifications.sendClassBookingEmail({
+        to: user.email,
+        userName: user.name,
+        classTitle: booking.gymClass.title,
+        startTime: booking.gymClass.startTime,
+        endTime: booking.gymClass.endTime,
+        location: booking.gymClass.location,
+        instructor: booking.gymClass.instructor,
+        bookingId: booking.id,
+      });
+    }
 
     return this.stripSecretAndAttachToken(booking);
   }
