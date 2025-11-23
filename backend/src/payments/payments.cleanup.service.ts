@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PaymentStatus, Prisma } from '@prisma/client';
+import { PaymentStatus } from '@prisma/client';
 import { PENDING_TTL_MS } from './constants';
 
 @Injectable()
@@ -37,7 +37,7 @@ export class PaymentsCleanupService implements OnModuleInit, OnModuleDestroy {
       },
       data: {
         status: PaymentStatus.failed,
-        paymentGatewayResponse: Prisma.JsonNull,
+        paymentGatewayResponse: null,
       },
     });
 
