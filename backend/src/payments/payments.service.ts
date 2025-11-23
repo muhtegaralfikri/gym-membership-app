@@ -292,11 +292,11 @@ export class PaymentsService {
   }
 
   /**
-   * Kirim email + WhatsApp setelah pembayaran sukses.
+   * Kirim email setelah pembayaran sukses.
    * Error dikumpulkan dan hanya di-log, tidak melempar.
    */
   private async sendPurchaseNotifications(
-    user: { name: string; email?: string | null; phone?: string | null },
+    user: { name: string; email?: string | null },
     pkg: { name: string },
     membership: { startDate: Date; endDate: Date },
   ) {
@@ -323,15 +323,6 @@ Selamat berlatih!`;
           to: user.email,
           subject: `Pembayaran paket ${pkg?.name || 'gym'} berhasil`,
           text: body,
-        }),
-      );
-    }
-
-    if (user.phone) {
-      tasks.push(
-        this.notifications.sendWhatsAppText({
-          to: user.phone,
-          message: body,
         }),
       );
     }
