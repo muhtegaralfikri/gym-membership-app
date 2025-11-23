@@ -12,6 +12,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { PromosModule } from './promos/promos.module';
 import { ClassesModule } from './classes/classes.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ClassesModule } from './classes/classes.module';
     MetricsModule,
     PromosModule,
     ClassesModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

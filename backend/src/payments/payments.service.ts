@@ -14,12 +14,14 @@ const midtransClient = require('midtrans-client');
 import { MembershipStatus, PaymentStatus, Prisma } from '@prisma/client';
 import { computeMidtransSignature } from './utils/midtrans-signature';
 import { PENDING_TTL_MS } from './constants';
+import { NotificationsService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private membershipsService: MembershipsService,
+    private notifications: NotificationsService,
   ) {}
 
   /**
@@ -47,7 +49,7 @@ export class PaymentsService {
     // 1. Cari transaksi berdasarkan order_id
     const transaction = await (this.prisma as any).transaction.findUnique({
       where: { orderId: order_id },
-      include: { promoCode: true } as any,
+      include: { promoCode: true, user: true, package: true } as any,
     });
 
     if (!transaction) {
@@ -125,6 +127,13 @@ export class PaymentsService {
           {
             timeout: 10000, // <-- TAMBAHKAN OPSI TIMEOUT INI (10 detik)
           },
+        );
+
+        // Kirim notifikasi di background; tidak boleh menggagalkan pembayaran.
+        void this.sendPurchaseNotifications(
+          transaction.user,
+          transaction.package,
+          result.membership,
         );
 
         return {
@@ -280,5 +289,62 @@ export class PaymentsService {
     };
 
     return this.handlePaymentNotification(dto);
+  }
+
+  /**
+   * Kirim email + WhatsApp setelah pembayaran sukses.
+   * Error dikumpulkan dan hanya di-log, tidak melempar.
+   */
+  private async sendPurchaseNotifications(
+    user: { name: string; email?: string | null; phone?: string | null },
+    pkg: { name: string },
+    membership: { startDate: Date; endDate: Date },
+  ) {
+    if (!user) return;
+
+    const start = new Date(membership.startDate);
+    const end = new Date(membership.endDate);
+    const formatDate = (d: Date) =>
+      d.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+
+    const body = `Hai ${user.name}, pembayaran paket ${pkg?.name || ''} berhasil.
+Membership aktif ${formatDate(start)} - ${formatDate(end)}.
+Selamat berlatih!`;
+
+    const tasks: Promise<any>[] = [];
+
+    if (user.email) {
+      tasks.push(
+        this.notifications.sendEmail({
+          to: user.email,
+          subject: `Pembayaran paket ${pkg?.name || 'gym'} berhasil`,
+          text: body,
+        }),
+      );
+    }
+
+    if (user.phone) {
+      tasks.push(
+        this.notifications.sendWhatsAppText({
+          to: user.phone,
+          message: body,
+        }),
+      );
+    }
+
+    if (!tasks.length) return;
+
+    const results = await Promise.allSettled(tasks);
+    const failures = results.filter((r) => r.status === 'rejected');
+    if (failures.length) {
+      console.warn(
+        '[notifications] gagal mengirim sebagian:',
+        failures.map((f) => (f as PromiseRejectedResult).reason),
+      );
+    }
   }
 }
