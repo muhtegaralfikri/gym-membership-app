@@ -302,27 +302,16 @@ export class PaymentsService {
   ) {
     if (!user) return;
 
-    const start = new Date(membership.startDate);
-    const end = new Date(membership.endDate);
-    const formatDate = (d: Date) =>
-      d.toLocaleDateString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
-
-    const body = `Hai ${user.name}, pembayaran paket ${pkg?.name || ''} berhasil.
-Membership aktif ${formatDate(start)} - ${formatDate(end)}.
-Selamat berlatih!`;
-
     const tasks: Promise<any>[] = [];
 
     if (user.email) {
       tasks.push(
-        this.notifications.sendEmail({
+        this.notifications.sendMembershipPaymentEmail({
           to: user.email,
-          subject: `Pembayaran paket ${pkg?.name || 'gym'} berhasil`,
-          text: body,
+          userName: user.name,
+          packageName: pkg?.name || 'gym',
+          startDate: membership.startDate,
+          endDate: membership.endDate,
         }),
       );
     }
