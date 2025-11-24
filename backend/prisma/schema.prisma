@@ -1,122 +1,211 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
-// generator client {
-//   provider = "prisma-client"
-//   output   = "../generated/prisma"
-// }
-
-// datasource db {
-//   provider = "postgresql"
-//   url      = env("DATABASE_URL")
-// }
-
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// 1. Konfigurasi Generator
 generator client {
   provider = "prisma-client-js"
 }
 
-// 2. Konfigurasi Datasource (Database)
 datasource db {
-  provider = "mysql" // Menggunakan MySQL
-  url      = env("DATABASE_URL") // Required for Prisma 6.x CLI compatibility
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
-// 3. Definisi Model (Skema Tabel)
-
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
-  email     String   @unique
-  password  String // Akan di-hash (Bcrypt)
-  phone     String?
-  isActive  Boolean  @default(true)
-  role      Role     @relation(fields: [roleId], references: [id])
-  roleId    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                Int              @id @default(autoincrement())
+  name              String
+  email             String           @unique
+  password          String
+  phone             String?
+  isActive          Boolean          @default(true)
+  roleId            Int
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  adminLogs         AdminLog[]
+  classBookings     ClassBooking[]
+  updatedGymClasses GymClass[]       @relation("GymClassUpdatedBy")
+  sessionsAsMember  PTSession[]      @relation("MemberSessions")
+  sessionsAsTrainer PTSession[]      @relation("TrainerSessions")
+  trainerProfile    TrainerProfile?
+  transactions      Transaction[]
+  role              Role             @relation(fields: [roleId], references: [id])
+  memberships       UserMembership[]
 
-  memberships   UserMembership[]
-  transactions  Transaction[]
-  classBookings ClassBooking[]
-  updatedGymClasses GymClass[] @relation("GymClassUpdatedBy")
-  adminLogs     AdminLog[]
-  trainerProfile   TrainerProfile?
-  sessionsAsTrainer PTSession[] @relation("TrainerSessions")
-  sessionsAsMember  PTSession[] @relation("MemberSessions")
+  @@index([roleId], map: "User_roleId_fkey")
 }
 
 model Role {
-  id    Int    @id @default(autoincrement()) // 1: Admin, 2: Member
-  name  String @unique // "admin", "member"
+  id    Int    @id @default(autoincrement())
+  name  String @unique
   users User[]
 }
 
 model Package {
-  id           Int      @id @default(autoincrement())
-  name         String   @unique
-  description  String?
-  features     Json? // Fitur paket (JSON)
-  price        Decimal  @db.Decimal(10, 2)
-  promoPrice   Decimal? @db.Decimal(10, 2)
-  promoExpiresAt DateTime?
-  ptSessionsQuota Int    @default(0)
-  bundleItems  Json?
-  durationDays Int
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  memberships UserMembership[]
-  transactions Transaction[]
-  promoCodes   PromoCode[]
+  id              Int              @id @default(autoincrement())
+  name            String           @unique
+  description     String?
+  features        String?          @db.LongText
+  price           Decimal          @db.Decimal(10, 2)
+  durationDays    Int
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  bundleItems     String?          @db.LongText
+  promoExpiresAt  DateTime?
+  promoPrice      Decimal?         @db.Decimal(10, 2)
+  ptSessionsQuota Int              @default(0)
+  promoCodes      PromoCode[]
+  transactions    Transaction[]
+  memberships     UserMembership[]
 }
 
 model Transaction {
-  id                     Int           @id @default(autoincrement())
-  orderId                String        @unique // ID order (bisa dari Midtrans/custom)
-  amount                 Decimal       @db.Decimal(10, 2)
-  discountAmount         Decimal       @db.Decimal(10, 2) @default(0)
-  status                 PaymentStatus @default(pending)
-  paymentGateway         String?       // "midtrans", dll.
-  paymentGatewayResponse Json?         // Raw response
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  id                     Int             @id @default(autoincrement())
+  orderId                String          @unique
+  amount                 Decimal         @db.Decimal(10, 2)
+  status                 PaymentStatus   @default(pending)
+  paymentGateway         String?
+  paymentGatewayResponse String?         @db.LongText
+  createdAt              DateTime        @default(now())
+  updatedAt              DateTime        @updatedAt
+  userId                 Int
+  packageId              Int
+  discountAmount         Decimal         @default(0.00) @db.Decimal(10, 2)
+  promoCodeId            Int?
+  package                Package         @relation(fields: [packageId], references: [id])
+  promoCode              PromoCode?      @relation(fields: [promoCodeId], references: [id])
+  user                   User            @relation(fields: [userId], references: [id])
+  membership             UserMembership?
 
-  user      User    @relation(fields: [userId], references: [id])
-  userId    Int
-  package   Package @relation(fields: [packageId], references: [id])
-  packageId Int
-
-  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id])
-  promoCodeId Int?
-
-  membership UserMembership? // Relasi 1-ke-1 opsional
+  @@index([packageId], map: "Transaction_packageId_fkey")
+  @@index([promoCodeId], map: "Transaction_promoCodeId_fkey")
+  @@index([userId], map: "Transaction_userId_fkey")
 }
 
-// Tabel Kunci: Menyimpan histori membership user
 model UserMembership {
-  id        Int      @id @default(autoincrement())
-  startDate DateTime
-  endDate   DateTime
-  status    MembershipStatus @default(upcoming)
+  id            Int              @id @default(autoincrement())
+  startDate     DateTime
+  endDate       DateTime
+  status        MembershipStatus @default(upcoming)
+  userId        Int
+  packageId     Int
+  transactionId Int              @unique
+  package       Package          @relation(fields: [packageId], references: [id])
+  transaction   Transaction      @relation(fields: [transactionId], references: [id])
+  user          User             @relation(fields: [userId], references: [id])
 
-  user      User    @relation(fields: [userId], references: [id])
-  userId    Int
-  package   Package @relation(fields: [packageId], references: [id])
-  packageId Int
-  
-  transaction   Transaction @relation(fields: [transactionId], references: [id])
-  transactionId Int         @unique // 1 membership = 1 bukti bayar
+  @@index([packageId], map: "UserMembership_packageId_fkey")
+  @@index([userId], map: "UserMembership_userId_fkey")
 }
 
-// 4. Definisi Enum
+model TrainerProfile {
+  id             Int                   @id @default(autoincrement())
+  userId         Int                   @unique
+  specialties    String
+  bio            String
+  rate           Decimal?              @db.Decimal(10, 2)
+  rating         Float                 @default(5)
+  availabilities TrainerAvailability[]
+  user           User                  @relation(fields: [userId], references: [id])
+}
+
+model TrainerAvailability {
+  id        Int            @id @default(autoincrement())
+  trainerId Int
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  trainer   TrainerProfile @relation(fields: [trainerId], references: [id])
+
+  @@index([trainerId], map: "TrainerAvailability_trainerId_fkey")
+}
+
+model PTSession {
+  id              Int             @id @default(autoincrement())
+  trainerId       Int
+  memberId        Int
+  scheduledAt     DateTime
+  durationMinutes Int             @default(60)
+  status          PTSessionStatus @default(BOOKED)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+<<<<<<< Updated upstream
+
+  @@unique([trainerId, scheduledAt])
+=======
+  member          User            @relation("MemberSessions", fields: [memberId], references: [id])
+  trainer         User            @relation("TrainerSessions", fields: [trainerId], references: [id])
+
+  @@index([memberId], map: "PTSession_memberId_fkey")
+  @@index([trainerId], map: "PTSession_trainerId_fkey")
+>>>>>>> Stashed changes
+}
+
+model GymClass {
+  id          Int            @id @default(autoincrement())
+  title       String
+  description String?
+  instructor  String?
+  location    String?
+  startTime   DateTime
+  endTime     DateTime
+  capacity    Int            @default(20)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  updatedById Int?
+  bookings    ClassBooking[]
+  updatedBy   User?          @relation("GymClassUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([updatedById], map: "GymClass_updatedById_fkey")
+}
+
+model ClassBooking {
+  id            Int           @id @default(autoincrement())
+  status        BookingStatus @default(booked)
+  checkedInAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  userId        Int
+  classId       Int
+  checkinSecret String
+  gymClass      GymClass      @relation(fields: [classId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@unique([userId, classId])
+  @@index([classId], map: "ClassBooking_classId_fkey")
+}
+
+model AdminLog {
+  id        Int      @id @default(autoincrement())
+  entity    String
+  entityId  Int?
+  action    String
+  details   String?  @db.LongText
+  createdAt DateTime @default(now())
+  adminId   Int?
+  admin     User?    @relation(fields: [adminId], references: [id])
+
+  @@index([adminId], map: "AdminLog_adminId_fkey")
+}
+
+model PromoCode {
+  id           Int               @id @default(autoincrement())
+  code         String            @unique
+  description  String?
+  discountType PromoDiscountType
+  value        Decimal           @db.Decimal(10, 2)
+  maxDiscount  Decimal?          @db.Decimal(10, 2)
+  minAmount    Decimal?          @db.Decimal(10, 2)
+  startsAt     DateTime?
+  endsAt       DateTime?
+  usageLimit   Int?
+  usedCount    Int               @default(0)
+  isActive     Boolean           @default(true)
+  packageId    Int?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  package      Package?          @relation(fields: [packageId], references: [id])
+  transactions Transaction[]
+
+  @@index([packageId], map: "PromoCode_packageId_fkey")
+}
 
 enum PaymentStatus {
   pending
@@ -125,110 +214,9 @@ enum PaymentStatus {
 }
 
 enum MembershipStatus {
-  upcoming // Dibeli saat paket lama masih aktif
-  active   // Sedang berjalan
-  expired  // Sudah lewat
-}
-
-model TrainerProfile {
-  id           Int      @id @default(autoincrement())
-  user         User     @relation(fields: [userId], references: [id])
-  userId       Int      @unique
-  specialties  String
-  bio          String
-  rate         Decimal? @db.Decimal(10, 2)
-  rating       Float    @default(5.0)
-
-  availabilities TrainerAvailability[]
-}
-
-model TrainerAvailability {
-  id        Int             @id @default(autoincrement())
-  trainer   TrainerProfile  @relation(fields: [trainerId], references: [id])
-  trainerId Int
-  dayOfWeek Int // 0-6
-  startTime String // "HH:mm"
-  endTime   String // "HH:mm"
-}
-
-model PTSession {
-  id              Int             @id @default(autoincrement())
-  trainer         User            @relation("TrainerSessions", fields: [trainerId], references: [id])
-  trainerId       Int
-  member          User            @relation("MemberSessions", fields: [memberId], references: [id])
-  memberId        Int
-  scheduledAt     DateTime
-  durationMinutes Int             @default(60)
-  status          PTSessionStatus @default(BOOKED)
-  notes           String?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-
-  @@unique([trainerId, scheduledAt])
-}
-
-model GymClass {
-  id          Int             @id @default(autoincrement())
-  title       String
-  description String?
-  instructor  String?
-  location    String?
-  startTime   DateTime
-  endTime     DateTime
-  capacity    Int             @default(20)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-
-  bookings ClassBooking[]
-  updatedBy   User? @relation("GymClassUpdatedBy", fields: [updatedById], references: [id])
-  updatedById Int?
-}
-
-model ClassBooking {
-  id          Int            @id @default(autoincrement())
-  status      BookingStatus  @default(booked)
-  checkinSecret String
-  checkedInAt DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  user     User     @relation(fields: [userId], references: [id])
-  userId   Int
-  gymClass GymClass @relation(fields: [classId], references: [id])
-  classId  Int
-
-  @@unique([userId, classId])
-}
-
-model AdminLog {
-  id        Int      @id @default(autoincrement())
-  entity    String
-  entityId  Int?
-  action    String
-  details   Json?
-  createdAt DateTime @default(now())
-  admin     User?    @relation(fields: [adminId], references: [id])
-  adminId   Int?
-}
-
-model PromoCode {
-  id          Int       @id @default(autoincrement())
-  code        String    @unique
-  description String?
-  discountType PromoDiscountType
-  value       Decimal   @db.Decimal(10, 2)
-  maxDiscount Decimal?  @db.Decimal(10, 2)
-  minAmount   Decimal?  @db.Decimal(10, 2)
-  startsAt    DateTime?
-  endsAt      DateTime?
-  usageLimit  Int?
-  usedCount   Int       @default(0)
-  isActive    Boolean   @default(true)
-  package     Package?  @relation(fields: [packageId], references: [id])
-  packageId   Int?
-  transactions Transaction[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  upcoming
+  active
+  expired
 }
 
 enum PromoDiscountType {
