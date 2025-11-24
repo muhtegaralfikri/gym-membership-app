@@ -76,6 +76,7 @@ async function main() {
         'Gratis handuk',
         '1x Sesi Personal Trainer',
       ]),
+      ptSessionsQuota: 1,
       isActive: true,
     },
   });
@@ -94,6 +95,7 @@ async function main() {
         '5x Sesi Personal Trainer',
         'Gratis merchandise',
       ]),
+      ptSessionsQuota: 5,
       isActive: true,
     },
   });
