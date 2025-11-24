@@ -1,115 +1,80 @@
-## ⏭️ Status & Rencana Selanjutnya
+# Gym Membership App (NestJS + Vue 3)
 
-### Status Saat Ini (Backend)
+Fullstack gym membership platform dengan backend NestJS + Prisma (MySQL) dan frontend Vue 3 + Vite. Aplikasi mendukung pembelian paket via Midtrans, penjadwalan kelas & personal trainer, serta dashboard admin.
 
-Fondasi *backend* telah selesai dan **alur E2E (End-to-End) utama telah teruji melalui Swagger**:
-1.  **Authentication**: `POST /auth/register` dan `POST /auth/login` (JWT) berfungsi.
-2.  **Role-Based Access (RBAC)**: `RolesGuard` dan `Role` Enum telah dibuat.
-3.  **CRUD Admin (Dasar)**: Admin dapat melihat (`GET /users`), memperbarui (`PUT /users/:id`), dan mengelola paket (`GET /packages/all`, `POST /packages`, `PUT /packages/:id`).
-4.  **Alur Pembayaran E2E**:
-    * Member dapat membuat transaksi (`POST /transactions`) dan mendapatkan `paymentToken` Midtrans.
-    * *Webhook* (`POST /payments/notification`) berhasil menerima notifikasi "settlement".
-    * `MembershipsService` berhasil dipanggil, memvalidasi, dan meng-update status transaksi ke `success`.
-    * Logika **Stacking Membership** (Active & Upcoming) terbukti **berhasil** saat *webhook* dijalankan kedua kalinya.
-    * Member dapat memverifikasi status keanggotaan mereka (`GET /memberships/my-status`).
+## Yang Ada di Proyek Ini
+- **Backend**: NestJS 11, Prisma, MySQL, JWT auth + RBAC (Admin/Member), Midtrans Snap (create txn, webhook settlement, refund/void), promo codes, stacking membership, kelas & check-in token, PT schedule/booking, email notifikasi (Nodemailer/Resend-style), Swagger di `/api`, Helmet + rate limit + CORS.
+- **Frontend**: Vue 3 + TypeScript + Vite, Pinia, Vue Router, Axios, Snap embed pada halaman paket, halaman member (profil, riwayat transaksi/membership), booking kelas & PT, dashboard admin (paket + promo, user, kelas, transaksi).
+- **Data model**: Users/Roles, Packages + PromoCode, Transactions, UserMembership (stacking), GymClass + ClassBooking (QR/check-in token), TrainerProfile + availability + PTSession, AdminLog, Metrics summary.
 
-### Rencana Kerja (Sisa Gaps)
+## Struktur Repo
+- `backend/` — API NestJS, Prisma schema/migrations, seed.
+- `frontend/` — SPA Vue 3 + Vite.
+- `backend/prisma/migrations/` — migrasi skema; `seed.ts` buat role, admin default, paket contoh.
 
-Tugas berikutnya adalah **Refactor** API agar lebih profesional (menggunakan *prefix* `/admin` sesuai rencana) dan melengkapi *endpoint-endpoint* yang hilang dari daftar.
+## Prasyarat
+- Node 18+ dan npm.
+- MySQL 8 (siapkan DB utama + shadow untuk Prisma `migrate dev`).
+- Akun Midtrans (Sandbox) untuk server/client key.
+- Opsional: kredensial email (Gmail SMTP atau Resend-style API).
 
----
+## Setup Backend
+1. Buat `backend/.env` (placeholder contoh):
+   ```env
+   DATABASE_URL="mysql://user:pass@localhost:3306/gymdb"
+   SHADOW_DATABASE_URL="mysql://user:pass@localhost:3306/prisma_shadow"
+   JWT_SECRET="super-secret"
+   MIDTRANS_SERVER_KEY="midtrans-server-key"
+   MIDTRANS_CLIENT_KEY="midtrans-client-key"
+   MIDTRANS_IS_PRODUCTION=false
+   CORS_ORIGINS="http://localhost:5173"
+   FRONTEND_URL="http://localhost:5173"
+   # Email (opsional)
+   GMAIL_USER=you@gmail.com
+   GMAIL_PASS=app-password
+   EMAIL_FROM=you@gmail.com
+   RESEND_API_KEY= # jika pakai provider kompatibel Resend
+   ```
+2. Instal & migrasi:
+   ```bash
+   cd backend
+   npm install
+   npx prisma migrate dev --name init
+   npx prisma db seed   # role + admin + paket contoh
+   npm run start:dev
+   ```
+3. Buka Swagger: http://localhost:3000/api
 
-### Langkah 1: Refactor URL (Prioritas Utama)
+## Setup Frontend
+1. Buat `frontend/.env`:
+   ```env
+   VITE_API_BASE_URL="http://localhost:3000"
+   VITE_MIDTRANS_CLIENT_KEY="midtrans-client-key"
+   ```
+2. Jalankan:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
 
-**Tujuan:** Memindahkan semua *endpoint* Admin agar konsisten menggunakan *prefix* `/admin/` sesuai rencana di CSV. Ini adalah *best practice* untuk kerapian dan keamanan API.
+## Akun Default
+- Admin: `admin@example.com` / `Admin123!` (dari seed).
+- Member: daftar via `/auth/register` atau tambah manual lewat admin user create.
 
-1.  **File: `src/users/users.controller.ts`**
-    * Ubah `@Controller('users')` menjadi `@Controller()`.
-    * Ubah *endpoint* `GET /users` (Admin) menjadi `@Get('admin/users')`.
-    * Ubah *endpoint* `PUT /users/:id` (Admin) menjadi `@Put('admin/users/:id')`.
-    * Biarkan `GET /users/profile` dan `PUT /users/profile` tetap dengan *prefix* `users/`.
+## Peta API Ringkas
+- Auth: `POST /auth/register`, `POST /auth/login` (JWT bearer).
+- User: `GET/PUT /users/profile`; Admin `GET/POST/PUT /admin/users`, `GET /admin/users/:id`.
+- Packages & Promo: `GET /packages` (public); Admin `GET/POST/PUT/DELETE /admin/packages`, `POST /admin/promos`, `GET /admin/promos`, `PUT/DELETE /admin/promos/:id`; Member `POST /promos/validate`.
+- Transactions & Payments: Member `POST /transactions`, `GET /transactions`; Admin `GET /admin/transactions` (+ `?status & search & pagination`), `GET /admin/transactions/export`, `POST /payments/admin/transactions/:id/refund`; Webhook `POST /payments/notification`; Member sync `POST /payments/sync/:orderId`.
+- Memberships: Member `GET /memberships/my-status`; Admin `GET /admin/memberships/user/:id`.
+- Classes: Public `GET /classes`; Member `POST /classes/:id/book`, `GET /classes/bookings/me`; Admin CRUD + bookings `GET/POST/PUT/DELETE /admin/classes*`, check-in endpoints; Check-in token `POST /classes/checkin`.
+- Trainers/PT: Public `GET /trainers`, `GET /trainers/:id/slots?date=YYYY-MM-DD`; Member `POST /trainers/:id/book`, `GET /trainers/sessions/me`; Admin manage trainer profile `POST /admin/trainers`, `.../update`, `.../delete`, availability `POST /trainers/schedule`.
+- Metrics: `GET /metrics/summary` (ringan untuk landing).
 
-2.  **File: `src/packages/packages.controller.ts`**
-    * Ubah `@Controller('packages')` menjadi `@Controller()`.
-    * Biarkan *endpoint* publik `GET /packages` tetap.
-    * Ubah *endpoint* `GET /packages/all` (Admin) menjadi `@Get('admin/packages')`.
-    * Ubah *endpoint* `POST /packages` (Admin) menjadi `@Post('admin/packages')`.
-    * Ubah *endpoint* `PUT /packages/:id` (Admin) menjadi `@Put('admin/packages/:id')`.
-
-3.  **File: `src/memberships/memberships.controller.ts`**
-    * Ubah `@Controller('memberships')` menjadi `@Controller()`.
-    * Biarkan *endpoint* `GET /memberships/my-status` tetap.
-    * Ubah *endpoint* `GET /memberships/user/:id` (Admin) menjadi `@Get('admin/memberships/user/:id')`.
-
----
-
-### Langkah 2: Melengkapi Admin CRUD Users
-
-**Tujuan:** Melengkapi *endpoint* Admin yang hilang di `UsersController` sesuai rencana.
-
-1.  **File: `src/users/dto/create-user-admin.dto.ts` (Baru)**
-    * Buat DTO baru yang mengizinkan Admin mengatur `email`, `password`, `name`, `roleId`.
-2.  **File: `src/users/users.service.ts`**
-    * Buat *method* baru `findOneById(id: number)` untuk mengambil detail satu user (dan `excludePassword`).
-    * Manfaatkan *method* `create` yang sudah ada (yang sudah meng-hash password).
-3.  **File: `src/users/users.controller.ts`**
-    * Buat *endpoint* `POST /admin/users` (dijaga `RolesGuard(Role.Admin)`).
-    * Buat *endpoint* `GET /admin/users/:id` (dijaga `RolesGuard(Role.Admin)`).
-
----
-
-### Langkah 3: Melengkapi Riwayat Transaksi
-
-**Tujuan:** Memberi akses *read-only* riwayat transaksi untuk Member dan Admin.
-
-1.  **File: `src/transactions/transactions.service.ts`**
-    * Buat *method* baru `findUserTransactions(userId: number)` (untuk Member).
-    * Buat *method* baru `findAllTransactions()` (untuk Admin).
-2.  **File: `src/transactions/transactions.controller.ts`**
-    * Buat *endpoint* `GET /transactions` (dijaga `JwtAuthGuard`, mengambil `userId` dari token).
-    * Buat *endpoint* `GET /admin/transactions` (dijaga `RolesGuard(Role.Admin)`).
-
----
-
-### Langkah 4: Mulai Pengembangan Frontend
-
-Setelah semua *endpoint* backend di atas selesai dan rapi, kita akan beralih ke folder `/frontend` dan mulai membangun aplikasi Vue.js untuk mengonsumsi API ini.
-
----
-
-## Quickstart (Local Dev)
-
-1. Backend
-   - Salin `backend/.env.example` ke `backend/.env` dan isi kredensial MySQL + Midtrans.
-   - Pastikan DB utama (`gymdb`) dan shadow (`prisma_shadow`) tersedia atau user boleh `CREATE DATABASE`.
-   - Jalankan:
-     ```bash
-     cd backend
-     npm install
-     npx prisma migrate dev --name init
-     npx prisma db seed          # isi role, paket, admin default
-     npm run start:dev
-     ```
-2. Frontend
-   - Salin `frontend/.env.example` ke `frontend/.env` dan set `VITE_API_BASE_URL` serta `VITE_MIDTRANS_CLIENT_KEY`.
-   - Jalankan:
-     ```bash
-     cd frontend
-     npm install
-     npm run dev
-     ```
-
-## Default Accounts
-- Admin: `admin@example.com` / `Admin123!`
-- Member: buat lewat register atau tambahkan di seed bila perlu.
-
-## Keamanan & Hardening
-- CORS terbatas pada asal yang diset di `main.ts`.
-- Helmet + rate limit aktif.
-- Prisma exception filter memetakan error DB ke HTTP yang lebih jelas.
-
-## Catatan Migrasi
-- Folder `backend/prisma/migrations` kini menjadi sumber kebenaran skema.
-- Untuk tim/non-prod: gunakan `npx prisma migrate dev` (butuh shadow DB).
-- Untuk deploy: gunakan `npx prisma migrate deploy` di server.
+## Catatan Tambahan
+- Pembayaran: transaksi dibuat via Midtrans Snap; webhook memvalidasi signature dan mengaktifkan membership (stacking jika ada yang aktif). Refund/void admin menandai transaksi gagal dan mengakhiri membership terkait.
+- Keamanan: Helmet + rate limit; CORS dibatasi ke `CORS_ORIGINS`; Prisma exception filter sudah dipasang global.
+- Migrations: gunakan `npx prisma migrate dev` untuk dev (butuh shadow DB) dan `npm run prisma:deploy` di server.
+- Frontend: halaman paket memuat Snap sandbox; check-in kelas lewat `/checkin?code=...`; guard router memakai token dari Pinia/localStorage.
 
