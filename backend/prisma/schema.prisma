@@ -118,24 +118,26 @@ model TrainerAvailability {
 
 model PTSession {
   id              Int             @id @default(autoincrement())
+  
   trainerId       Int
+  trainer         User            @relation("TrainerSessions", fields: [trainerId], references: [id])
+  
   memberId        Int
+  member          User            @relation("MemberSessions", fields: [memberId], references: [id])
+  
   scheduledAt     DateTime
   durationMinutes Int             @default(60)
   status          PTSessionStatus @default(BOOKED)
   notes           String?
+  
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-<<<<<<< Updated upstream
 
+  // Ini adalah fix untuk mencegah double booking (Race Condition)
   @@unique([trainerId, scheduledAt])
-=======
-  member          User            @relation("MemberSessions", fields: [memberId], references: [id])
-  trainer         User            @relation("TrainerSessions", fields: [trainerId], references: [id])
-
-  @@index([memberId], map: "PTSession_memberId_fkey")
+  
+  // Index ini opsional (biasanya otomatis), tapi jika ada di stashed changes bisa disimpan
   @@index([trainerId], map: "PTSession_trainerId_fkey")
->>>>>>> Stashed changes
 }
 
 model GymClass {
