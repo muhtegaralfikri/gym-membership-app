@@ -20,7 +20,13 @@ async function main() {
     create: { id: 2, name: 'member' },
   });
 
-  console.log('Roles created:', { adminRole, memberRole });
+  const trainerRole = await prisma.role.upsert({
+    where: { name: 'trainer' },
+    update: {},
+    create: { id: 3, name: 'trainer' },
+  });
+
+  console.log('Roles created:', { adminRole, memberRole, trainerRole });
 
   // --- Seed Admin User (default) ---
   const adminEmail = 'admin@example.com';

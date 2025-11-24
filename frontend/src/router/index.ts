@@ -18,6 +18,7 @@ import AdminTransactionsView from '../views/AdminTransactionsView.vue'
 import ClassesView from '../views/ClassesView.vue'
 import CheckinView from '../views/CheckinView.vue'
 import TrainersView from '@/views/TrainersView.vue'
+import TrainerDashboardView from '@/views/TrainerDashboardView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -43,6 +44,12 @@ const router = createRouter({
       name: 'profile',
       component: ProfileView,
       meta: { requiresAuth: true },
+    },
+    {
+      path: '/trainer',
+      name: 'trainer-dashboard',
+      component: TrainerDashboardView,
+      meta: { requiresAuth: true, requiresTrainer: true },
     },
     {
       path: '/admin',
@@ -123,6 +130,10 @@ router.beforeEach(async (to, _from, next) => {
     next({ name: 'admin' })
     return
   }
+  if (to.name === 'profile' && auth.isTrainer) {
+    next({ name: 'trainer-dashboard' })
+    return
+  }
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     next({ name: 'login' })
@@ -130,6 +141,11 @@ router.beforeEach(async (to, _from, next) => {
   }
 
   if (to.meta.requiresAdmin && !auth.isAdmin) {
+    next({ name: auth.isAuthenticated ? 'home' : 'login' })
+    return
+  }
+
+  if (to.meta.requiresTrainer && !(auth.isTrainer || auth.isAdmin)) {
     next({ name: auth.isAuthenticated ? 'home' : 'login' })
     return
   }

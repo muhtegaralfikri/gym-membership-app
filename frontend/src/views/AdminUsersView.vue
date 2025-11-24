@@ -71,7 +71,7 @@ const startEditUser = (user: AdminUser) => {
     name: user.name,
     email: user.email,
     phone: user.phone || '',
-    roleId: user.roleId,
+    roleId: user.trainerProfile ? 3 : user.roleId,
     password: '',
     isActive: user.isActive ?? true,
     isTrainer: !!user.trainerProfile,
@@ -114,7 +114,7 @@ const submitUserForm = async () => {
   const payload: any = {
     name: userForm.value.name,
     phone: userForm.value.phone || undefined,
-    roleId: userForm.value.roleId || 2,
+    roleId: userForm.value.isTrainer ? 3 : userForm.value.roleId || 2,
   }
 
   if (!userForm.value.name || !userForm.value.email) {
@@ -154,7 +154,11 @@ const submitUserForm = async () => {
   }
 }
 
-const roleLabel = (roleId: number) => (roleId === 1 ? 'Admin' : 'Member')
+const roleLabel = (roleId: number) => {
+  if (roleId === 1) return 'Admin'
+  if (roleId === 3) return 'Trainer'
+  return 'Member'
+}
 
 const syncTrainerProfile = async (form: typeof userForm.value) => {
   if (!form.id) return
@@ -254,6 +258,7 @@ onMounted(fetchUsers)
             <select v-model.number="userForm.roleId">
               <option :value="1">Admin</option>
               <option :value="2">Member</option>
+              <option :value="3">Trainer</option>
             </select>
           </label>
           <label v-if="!isEditingUser" class="form-field">
@@ -316,7 +321,12 @@ onMounted(fetchUsers)
               <td>{{ user.name }}</td>
               <td class="mono">{{ user.email }}</td>
               <td>
-                <span class="badge" :class="{ admin: user.roleId === 1 }">{{ roleLabel(user.roleId) }}</span>
+                <span
+                  class="badge"
+                  :class="{ admin: user.roleId === 1, trainer: user.roleId === 3 }"
+                >
+                  {{ roleLabel(user.roleId) }}
+                </span>
               </td>
               <td>
                 <span v-if="user.trainerProfile" class="badge trainer">Trainer</span>
@@ -615,6 +625,12 @@ th {
 .badge.admin {
   background: var(--primary-contrast);
   color: var(--primary);
+}
+
+.badge.trainer {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #cbd5ff;
 }
 
 .status {

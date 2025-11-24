@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -96,15 +97,19 @@ export class TrainersService {
     });
   }
 
-  async findMemberSessions(memberId: number) {
+  async findMemberSessions(memberId: number, includePast = false) {
     const now = new Date();
+    const where: Prisma.PTSessionWhereInput = {
+      memberId,
+      status: { not: PTSessionStatus.CANCELLED },
+    };
+    if (!includePast) {
+      where.scheduledAt = { gte: now };
+    }
+
     return this.prisma.pTSession.findMany({
-      where: {
-        memberId,
-        scheduledAt: { gte: now },
-        status: { not: PTSessionStatus.CANCELLED },
-      },
-      orderBy: { scheduledAt: 'asc' },
+      where,
+      orderBy: { scheduledAt: includePast ? 'desc' : 'asc' },
       include: {
         trainer: {
           select: {
@@ -114,6 +119,62 @@ export class TrainersService {
             trainerProfile: true,
           },
         },
+      },
+    });
+  }
+
+  async findTrainerSessions(trainerId: number) {
+    return this.prisma.pTSession.findMany({
+      where: {
+        trainerId,
+        status: { not: PTSessionStatus.CANCELLED },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      include: {
+        member: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
+  async completeSession(
+    trainerId: number,
+    sessionId: number,
+    notes?: string,
+    allowAdminOverride = false,
+  ) {
+    const session = await this.prisma.pTSession.findUnique({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        trainerId: true,
+        status: true,
+        notes: true,
+      },
+    });
+
+    if (!session) {
+      throw new NotFoundException('Session not found');
+    }
+
+    if (session.trainerId !== trainerId && !allowAdminOverride) {
+      throw new ForbiddenException('Trainer tidak memiliki akses ke sesi ini');
+    }
+
+    if (session.status === PTSessionStatus.CANCELLED) {
+      throw new BadRequestException('Sesi yang dibatalkan tidak bisa ditandai selesai');
+    }
+
+    return this.prisma.pTSession.update({
+      where: { id: sessionId },
+      data: {
+        status: PTSessionStatus.COMPLETED,
+        notes: notes ?? session.notes,
       },
     });
   }

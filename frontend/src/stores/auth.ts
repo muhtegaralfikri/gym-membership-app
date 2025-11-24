@@ -39,6 +39,7 @@ export const useAuthStore = defineStore('auth', {
 
     // Getter untuk cek role (akan berguna nanti)
     isAdmin: (state) => state.user?.roleId === 1,
+    isTrainer: (state) => state.user?.roleId === 3,
   },
 
   /**

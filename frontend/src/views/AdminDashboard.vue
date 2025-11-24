@@ -55,6 +55,12 @@ interface MetricsSummary {
 
 const authStore = useAuthStore()
 
+const roleLabel = (roleId: number) => {
+  if (roleId === 1) return 'Admin'
+  if (roleId === 3) return 'Trainer'
+  return 'Member'
+}
+
 const metrics = ref<MetricsSummary>({
   activeMembers: 0,
   activeInstructors: 0,
@@ -202,9 +208,9 @@ onMounted(fetchAdminData)
             <small> Meliputi status active & upcoming</small>
           </div>
           <div class="meta-card">
-            <span class="label">Instruktur/admin</span>
+            <span class="label">Staf (admin/trainer)</span>
             <strong>{{ metrics.activeInstructors }}</strong>
-            <small> Role admin terdaftar</small>
+            <small>Admin + trainer aktif</small>
           </div>
           <div class="meta-card">
             <span class="label">Rata-rata sisa</span>
@@ -352,8 +358,8 @@ onMounted(fetchAdminData)
                 <strong>{{ user.name }}</strong>
                 <small class="muted">{{ user.email }}</small>
               </div>
-              <span class="badge" :class="{ admin: user.roleId === 1 }">
-                {{ user.roleId === 1 ? 'Admin' : 'Member' }}
+              <span class="badge" :class="{ admin: user.roleId === 1, trainer: user.roleId === 3 }">
+                {{ roleLabel(user.roleId) }}
               </span>
             </li>
             <li v-if="!latestUsers.length" class="muted empty-row">Belum ada pengguna.</li>
@@ -718,6 +724,12 @@ th {
 .badge.admin {
   background: var(--primary-contrast);
   color: var(--primary);
+}
+
+.badge.trainer {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #cbd5ff;
 }
 
 .empty-row {

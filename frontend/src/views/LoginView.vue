@@ -32,7 +32,12 @@ const handleLogin = async () => {
     // 4. Ambil profil untuk tahu role lalu arahkan
     const profileRes = await api.get('/users/profile')
     authStore.setUser(profileRes.data)
-    const target = profileRes.data.roleId === 1 ? '/admin' : '/profile'
+    const target =
+      profileRes.data.roleId === 1
+        ? '/admin'
+        : profileRes.data.roleId === 3
+          ? '/trainer'
+          : '/profile'
     // Kita gunakan 'replace' agar user tidak bisa klik "back" ke halaman login
     setTimeout(() => {
       router.replace(target)

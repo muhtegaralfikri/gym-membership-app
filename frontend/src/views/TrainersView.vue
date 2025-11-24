@@ -155,7 +155,9 @@ const fetchSessions = async () => {
   loadingSessions.value = true
   sessionsError.value = ''
   try {
-    const res = await api.get<MemberSession[]>('/trainers/sessions/me')
+    const res = await api.get<MemberSession[]>('/trainers/sessions/me', {
+      params: { includePast: true },
+    })
     mySessions.value = res.data || []
   } catch (err: any) {
     sessionsError.value = err?.response?.data?.message || 'Gagal memuat sesi Anda.'
@@ -189,7 +191,23 @@ const bookSession = async () => {
   }
 }
 
-const hasSessions = computed(() => mySessions.value.length > 0)
+const upcomingSessions = computed(() =>
+  mySessions.value
+    .filter(
+      (s) =>
+        s.status !== 'CANCELLED' &&
+        new Date(s.scheduledAt).getTime() >= Date.now(),
+    )
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
+)
+
+const journalEntries = computed(() =>
+  mySessions.value
+    .filter((s) => s.status === 'COMPLETED')
+    .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()),
+)
+
+const hasSessions = computed(() => upcomingSessions.value.length > 0)
 
 onMounted(() => {
   void fetchTrainers()
@@ -285,7 +303,7 @@ onMounted(() => {
         </div>
         <div v-else-if="!hasSessions" class="empty">Belum ada sesi terjadwal.</div>
         <div v-else class="sessions-list">
-          <article v-for="session in mySessions" :key="session.id" class="session-card">
+          <article v-for="session in upcomingSessions" :key="session.id" class="session-card">
             <div>
               <p class="eyebrow">{{ formatDateTime(session.scheduledAt) }}</p>
               <h4>{{ session.trainer?.name }}</h4>
@@ -299,6 +317,29 @@ onMounted(() => {
         </div>
       </section>
     </div>
+
+    <section class="card journal">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Jurnal Latihan</p>
+          <h3>Catatan sesi selesai</h3>
+        </div>
+      </div>
+
+      <p v-if="!authStore.isAuthenticated" class="empty">Login untuk melihat jurnal Anda.</p>
+      <div v-else-if="loadingSessions" class="skeleton-grid narrow">
+        <div class="skeleton-line" v-for="n in 4" :key="`journal-${n}`"></div>
+      </div>
+      <p v-else-if="!journalEntries.length" class="empty">Belum ada catatan latihan.</p>
+      <div v-else class="journal-grid">
+        <article v-for="session in journalEntries" :key="session.id" class="journal-card">
+          <p class="eyebrow">{{ formatDateTime(session.scheduledAt) }}</p>
+          <h4>{{ session.trainer?.name }}</h4>
+          <p class="muted">Durasi {{ session.durationMinutes }} menit</p>
+          <p class="notes">{{ session.notes || 'Tidak ada catatan.' }}</p>
+        </article>
+      </div>
+    </section>
 
     <div v-if="modalOpen" class="modal-backdrop" @click.self="closeModal">
       <div class="modal card">
@@ -662,6 +703,35 @@ button.selected {
   align-items: center;
   gap: 0.5rem;
   flex-wrap: wrap;
+}
+
+.journal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.journal-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  background: var(--surface-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.journal {
+  padding: 1.25rem;
+}
+
+.journal .section-head {
+  margin-bottom: 0.35rem;
+}
+
+.journal .empty {
+  padding: 0.6rem 0.2rem;
 }
 
 .skeleton-grid {

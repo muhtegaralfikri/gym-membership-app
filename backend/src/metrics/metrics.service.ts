@@ -35,10 +35,10 @@ export class MetricsService {
             ),
           );
 
-    const adminOnly = await this.prisma.user.count({
+    const staffCount = await this.prisma.user.count({
       where: {
         role: {
-          name: 'admin',
+          name: { in: ['admin', 'trainer'] },
         },
       },
     });
@@ -59,7 +59,7 @@ export class MetricsService {
 
     return {
       activeMembers,
-      activeInstructors: adminOnly,
+      activeInstructors: staffCount,
       latestInitials,
       averageRemainingDays: remainingDays,
       remainingDays,

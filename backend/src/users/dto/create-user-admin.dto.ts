@@ -39,7 +39,7 @@ export class CreateUserAdminDto {
 
   @ApiProperty({
     example: Role.Member, // default 2
-    description: 'User role (1: Admin, 2: Member)',
+    description: 'User role (1: Admin, 2: Member, 3: Trainer)',
     default: Role.Member,
   })
   @IsInt()
