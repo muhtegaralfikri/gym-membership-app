@@ -32,7 +32,7 @@ export class UpdateUserAdminDto {
 
   @ApiProperty({
     example: Role.Member, // Kita pakai Enum kita (hasilnya 2)
-    description: 'Change user role (1: Admin, 2: Member)',
+    description: 'Change user role (1: Admin, 2: Member, 3: Trainer)',
     required: false,
   })
   @IsInt()

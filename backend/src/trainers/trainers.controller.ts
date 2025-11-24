@@ -23,6 +23,7 @@ import type { Request } from 'express';
 import { UserResponseDto } from 'src/users/dto/user-response.dto';
 import { CreateTrainerDto } from './dto/create-trainer.dto';
 import { UpdateTrainerDto } from './dto/update-trainer.dto';
+import { CompleteSessionDto } from './dto/complete-session.dto';
 
 @ApiTags('Trainers')
 @Controller()
@@ -71,8 +72,40 @@ export class TrainersController {
   @Roles(Role.Member)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Upcoming PT sessions for current member' })
-  mySessions(@Req() req: Request & { user: UserResponseDto }) {
-    return this.trainersService.findMemberSessions(req.user.id);
+  mySessions(
+    @Req() req: Request & { user: UserResponseDto },
+    @Query('includePast') includePast?: string,
+  ) {
+    const withHistory = includePast === 'true';
+    return this.trainersService.findMemberSessions(req.user.id, withHistory);
+  }
+
+  @Get('trainer/sessions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Trainer, Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'All PT sessions for current trainer' })
+  trainerSessions(@Req() req: Request & { user: UserResponseDto }) {
+    return this.trainersService.findTrainerSessions(req.user.id);
+  }
+
+  @Post('trainer/sessions/:id/complete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Trainer, Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark PT session as completed and add notes (Trainer/Admin)' })
+  completeSession(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CompleteSessionDto,
+    @Req() req: Request & { user: UserResponseDto },
+  ) {
+    const allowAdminOverride = req.user.roleId === Role.Admin;
+    return this.trainersService.completeSession(
+      req.user.id,
+      id,
+      dto.notes,
+      allowAdminOverride,
+    );
   }
 
   @Post('admin/trainers')
@@ -107,7 +140,7 @@ export class TrainersController {
 
   @Post('trainers/schedule')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin, Role.Member)
+  @Roles(Role.Admin, Role.Trainer)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Set trainer availability (Trainer/Admin)' })
   setAvailability(

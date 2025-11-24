@@ -87,6 +87,14 @@ watch(
         <RouterLink to="/trainers" @click="closeMenu">Personal Trainer</RouterLink>
 
         <template v-if="authStore.isAuthenticated">
+          <RouterLink
+            v-if="authStore.isTrainer"
+            to="/trainer"
+            class="highlight"
+            @click="closeMenu"
+          >
+            Dashboard Trainer
+          </RouterLink>
           <div v-if="authStore.isAdmin" class="admin-menu" :class="{ open: adminMenuOpen }">
             <button type="button" class="admin-toggle" @click="toggleAdminMenu">
               Admin
@@ -100,7 +108,13 @@ watch(
               <RouterLink to="/admin-users" @click="handleAdminNav">Kelola pengguna</RouterLink>
             </div>
           </div>
-          <RouterLink v-if="!authStore.isAdmin" to="/profile" @click="closeMenu">Profil Saya</RouterLink>
+          <RouterLink
+            v-if="!authStore.isAdmin && !authStore.isTrainer"
+            to="/profile"
+            @click="closeMenu"
+          >
+            Profil Saya
+          </RouterLink>
           <a @click="() => { handleLogout(); closeMenu(); }" class="logout-link">Logout</a>
         </template>
 
@@ -200,6 +214,12 @@ watch(
   padding: 0.35rem 0.55rem;
   border-radius: 10px;
   transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.navbar-links a.highlight {
+  color: var(--primary);
+  background: var(--primary-contrast);
+  border: 1px solid var(--border);
 }
 
 .navbar-links a:hover,

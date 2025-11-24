@@ -38,6 +38,9 @@ const message = ref('')
 const loading = ref(true)
 
 const isAdmin = computed(() => authStore.isAdmin || profile.value?.roleId === 1)
+const isTrainer = computed(() => authStore.isTrainer || profile.value?.roleId === 3)
+const isStaff = computed(() => isAdmin.value || isTrainer.value)
+const roleLabel = computed(() => (isAdmin.value ? 'Admin' : isTrainer.value ? 'Trainer' : 'Member'))
 
 const initial = computed(
   () => profile.value?.name?.charAt(0).toUpperCase() ?? '?',
@@ -82,6 +85,10 @@ onMounted(async () => {
 
     if (profileData.roleId === 1) {
       router.replace('/admin')
+      return
+    }
+    if (profileData.roleId === 3) {
+      router.replace('/trainer')
       return
     }
 
@@ -147,19 +154,19 @@ onMounted(async () => {
     <div v-else-if="profile" class="hero card">
       <div class="avatar">{{ initial }}</div>
       <div class="hero-info">
-        <div class="pill">{{ isAdmin ? 'Admin' : 'Member' }}</div>
+        <div class="pill">{{ roleLabel }}</div>
         <h2>{{ profile.name }}</h2>
         <p class="muted">{{ profile.email }}</p>
         <div class="chips">
           <span class="chip">Telepon: {{ profile.phone || '-' }}</span>
           <span class="chip">Sejak {{ formatDate(profile.createdAt) }}</span>
-          <span v-if="!isAdmin && activeMembership" class="chip status-chip">
+          <span v-if="!isStaff && activeMembership" class="chip status-chip">
             Status: {{ formatStatus(activeMembership.status) }}
           </span>
         </div>
       </div>
       <div class="hero-stat">
-        <template v-if="!isAdmin">
+        <template v-if="!isStaff">
           <p class="label">Membership aktif</p>
           <template v-if="activeMembership">
             <strong>{{ activeMembership.package.name }}</strong>
@@ -172,15 +179,16 @@ onMounted(async () => {
           <RouterLink class="ghost-btn" to="/packages">Tambah Paket</RouterLink>
         </template>
         <template v-else>
-          <p class="label">Akses admin</p>
-          <strong>Role: Admin</strong>
-          <small>Akun admin tidak menggunakan membership.</small>
-          <RouterLink class="ghost-btn" to="/admin">Buka Dashboard Admin</RouterLink>
+          <p class="label">Akses staf</p>
+          <strong>Role: {{ roleLabel }}</strong>
+          <small>Akun staf tidak menggunakan membership.</small>
+          <RouterLink v-if="isAdmin" class="ghost-btn" to="/admin">Buka Dashboard Admin</RouterLink>
+          <RouterLink v-else class="ghost-btn" to="/trainer">Buka Dashboard Trainer</RouterLink>
         </template>
       </div>
     </div>
 
-    <div v-if="profile && !isAdmin" class="membership-section card">
+    <div v-if="profile && !isStaff" class="membership-section card">
       <div class="section-head">
         <h3>Riwayat Membership</h3>
         <RouterLink class="ghost-btn" to="/packages">Lihat Paket</RouterLink>
@@ -217,7 +225,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="profile && !isAdmin" class="transactions card">
+    <div v-if="profile && !isStaff" class="transactions card">
       <div class="section-head">
         <h3>Transaksi Terbaru</h3>
         <RouterLink class="ghost-btn" to="/packages">Lanjutkan Bayar</RouterLink>
