@@ -28,6 +28,15 @@ const completing = ref(false)
 const selectedSessionId = ref<number | null>(null)
 const notesInput = ref('')
 
+type SlotInput = { dayOfWeek: number; startTime: string; endTime: string }
+const dayInput = ref<number>(1)
+const startInput = ref('09:00')
+const endInput = ref('10:00')
+const availabilitySlots = ref<SlotInput[]>([])
+const scheduleSaving = ref(false)
+const scheduleMessage = ref('')
+const scheduleError = ref('')
+
 const fetchSessions = async () => {
   loading.value = true
   error.value = ''
@@ -116,6 +125,69 @@ const closeSheet = () => {
   notesInput.value = ''
 }
 
+const addSlot = () => {
+  scheduleMessage.value = ''
+  scheduleError.value = ''
+  if (dayInput.value < 0 || dayInput.value > 6) {
+    scheduleError.value = 'Hari harus 0-6.'
+    return
+  }
+  if (!startInput.value || !endInput.value) {
+    scheduleError.value = 'Isi jam mulai dan selesai.'
+    return
+  }
+  if (startInput.value >= endInput.value) {
+    scheduleError.value = 'Jam selesai harus setelah jam mulai.'
+    return
+  }
+  availabilitySlots.value = [
+    ...availabilitySlots.value.filter(
+      (s) =>
+        !(
+          s.dayOfWeek === dayInput.value &&
+          s.startTime === startInput.value &&
+          s.endTime === endInput.value
+        ),
+    ),
+    {
+      dayOfWeek: dayInput.value,
+      startTime: startInput.value,
+      endTime: endInput.value,
+    },
+  ]
+}
+
+const removeSlot = (slot: SlotInput) => {
+  availabilitySlots.value = availabilitySlots.value.filter(
+    (s) =>
+      !(
+        s.dayOfWeek === slot.dayOfWeek &&
+        s.startTime === slot.startTime &&
+        s.endTime === slot.endTime
+      ),
+  )
+}
+
+const saveSchedule = async () => {
+  scheduleMessage.value = ''
+  scheduleError.value = ''
+  if (!availabilitySlots.value.length) {
+    scheduleError.value = 'Tambahkan minimal satu slot.'
+    return
+  }
+  scheduleSaving.value = true
+  try {
+    await api.post('/trainers/schedule', {
+      slots: availabilitySlots.value,
+    })
+    scheduleMessage.value = 'Jadwal tersimpan. Slot akan muncul di halaman member.'
+  } catch (err: any) {
+    scheduleError.value = err?.response?.data?.message || 'Gagal menyimpan jadwal.'
+  } finally {
+    scheduleSaving.value = false
+  }
+}
+
 const submitCompletion = async () => {
   if (!selectedSessionId.value) return
   completing.value = true
@@ -201,8 +273,8 @@ onMounted(() => {
       </div>
     </header>
 
-    <section class="card">
-      <div class="section-head">
+<section class="card calendar-card">
+  <div class="section-head">
         <div>
           <p class="eyebrow">Kalender</p>
           <h3>Agenda personal</h3>
@@ -263,6 +335,49 @@ onMounted(() => {
           <p class="muted">{{ formatTimeRange(session) }}</p>
           <p class="notes">{{ session.notes || 'Tidak ada catatan' }}</p>
         </article>
+      </div>
+    </section>
+
+    <section class="card schedule-card">
+      <div class="section-head">
+        <div>
+          <p class="eyebrow">Kelola jadwal</p>
+          <h3>Availability Trainer</h3>
+          <p class="muted helper">Tambahkan slot per hari. Jadwal baru menggantikan slot sebelumnya.</p>
+        </div>
+        <button type="button" class="ghost" @click="addSlot">Tambah slot</button>
+      </div>
+
+      <div class="schedule-form">
+        <label class="field inline">
+          <span>Hari (0=Ahad ... 6=Sabtu)</span>
+          <input v-model.number="dayInput" type="number" min="0" max="6" />
+        </label>
+        <label class="field inline">
+          <span>Mulai</span>
+          <input v-model="startInput" type="time" />
+        </label>
+        <label class="field inline">
+          <span>Selesai</span>
+          <input v-model="endInput" type="time" />
+        </label>
+        <button type="button" @click="addSlot">Tambah</button>
+      </div>
+
+      <div class="slot-chips" v-if="availabilitySlots.length">
+        <div class="chip" v-for="slot in availabilitySlots" :key="`${slot.dayOfWeek}-${slot.startTime}-${slot.endTime}`">
+          <span>Hari {{ slot.dayOfWeek }} • {{ slot.startTime }} - {{ slot.endTime }}</span>
+          <button type="button" class="ghost" @click="removeSlot(slot)">✕</button>
+        </div>
+      </div>
+      <p v-else class="muted">Belum ada slot. Tambahkan minimal satu.</p>
+
+      <div class="schedule-actions">
+        <button type="button" @click="saveSchedule" :disabled="scheduleSaving">
+          {{ scheduleSaving ? 'Menyimpan...' : 'Simpan jadwal' }}
+        </button>
+        <p v-if="scheduleMessage" class="message success">{{ scheduleMessage }}</p>
+        <p v-if="scheduleError" class="message error">{{ scheduleError }}</p>
       </div>
     </section>
 
@@ -404,6 +519,10 @@ onMounted(() => {
   gap: 0.5rem;
 }
 
+.calendar-card {
+  padding: 1.25rem;
+}
+
 .helper {
   margin: 0.25rem 0 0;
 }
@@ -509,6 +628,65 @@ onMounted(() => {
   border-radius: 12px;
   padding: 0.85rem;
   background: var(--surface-alt);
+}
+
+.schedule-card {
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.schedule-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+}
+
+.field.inline {
+  margin: 0;
+}
+
+.slot-chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.slot-chips .chip {
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.schedule-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.message {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  margin: 0;
+}
+
+.message.success {
+  background: #ecfdf3;
+  color: #065f46;
+  border: 1px solid #bbf7d0;
+}
+
+.message.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
 }
 
 .skeleton-grid {
