@@ -250,16 +250,24 @@ export class TrainersService {
 
     await this.ensureTrainerFree(trainerId, startTime, endTime);
 
-    const session = await this.prisma.pTSession.create({
-      data: {
-        trainerId,
-        memberId,
-        scheduledAt: startTime,
-        durationMinutes: duration,
-        status: PTSessionStatus.BOOKED,
-        notes,
-      },
-    });
+    let session;
+    try {
+      session = await this.prisma.pTSession.create({
+        data: {
+          trainerId,
+          memberId,
+          scheduledAt: startTime,
+          durationMinutes: duration,
+          status: PTSessionStatus.BOOKED,
+          notes,
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw new BadRequestException('Slot time is already booked by another member');
+      }
+      throw err;
+    }
 
     void this.sendBookingEmails(session, trainer, member);
     return session;

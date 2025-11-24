@@ -14,7 +14,7 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   // 2. Buat helper function agar DRY (Don't Repeat Yourself)
-  private excludePassword(user: User): UserResponseDto {
+  private excludePassword<T extends { password?: unknown }>(user: T): Omit<T, 'password'> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password: _, ...result } = user;
     return result;
@@ -47,9 +47,12 @@ export class UsersService {
   /**
    * (Admin) Mengambil detail satu user by ID (tanpa password)
    */
-  async findOneById(id: number): Promise<UserResponseDto> {
+  async findOneById(id: number): Promise<UserResponseDto & { trainerProfile?: unknown }> {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        trainerProfile: true,
+      },
     });
 
     if (!user) {
@@ -112,8 +115,11 @@ export class UsersService {
   /**
    * (Admin) Mengambil semua user
    */
-  async findAll(): Promise<UserResponseDto[]> {
+  async findAll(): Promise<Array<UserResponseDto & { trainerProfile?: unknown }>> {
     const users = await this.prisma.user.findMany({
+      include: {
+        trainerProfile: true,
+      },
       orderBy: { id: 'asc' },
     });
     // Map setiap user untuk membuang password
