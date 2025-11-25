@@ -504,8 +504,24 @@ export class TrainersService {
       new Date(session.scheduledAt.getTime() + session.durationMinutes * 60_000),
     );
     const tasks: Promise<any>[] = [];
+    const baseUrl = (process.env.FRONTEND_URL || '').replace(/\/$/, '');
+    const actionUrl = baseUrl ? `${baseUrl}/trainers` : undefined;
 
     if (member.email) {
+      const memberHtml = this.notifications.buildPTBookingHtml({
+        heading: 'Booking PT Berhasil',
+        title: trainer.name || 'Personal Trainer',
+        subtitle: 'Jadwal kamu sudah dikonfirmasi',
+        startText: `${startText} WIB`,
+        endText: `${endText} WIB`,
+        durationMinutes: session.durationMinutes,
+        trainerName: trainer.name,
+        memberName: member.name,
+        role: 'member',
+        notes: session.notes,
+        actionUrl,
+      });
+
       tasks.push(
         this.notifications.sendEmail(
           member.email,
@@ -519,11 +535,27 @@ export class TrainersService {
           ]
             .filter(Boolean)
             .join('\n'),
+          memberHtml,
         ),
       );
     }
 
     if (trainer.email) {
+      const trainerHtml = this.notifications.buildPTBookingHtml({
+        heading: 'Booking PT Baru',
+        title: member.name || 'Member baru',
+        subtitle: 'Ada jadwal PT baru untukmu',
+        startText: `${startText} WIB`,
+        endText: `${endText} WIB`,
+        durationMinutes: session.durationMinutes,
+        trainerName: trainer.name,
+        memberName: member.name,
+        role: 'trainer',
+        notes: session.notes,
+        actionUrl,
+        footerNote: 'Pastikan datang tepat waktu dan siapkan rencana latihan singkat.',
+      });
+
       tasks.push(
         this.notifications.sendEmail(
           trainer.email,
@@ -536,6 +568,7 @@ export class TrainersService {
           ]
             .filter(Boolean)
             .join('\n'),
+          trainerHtml,
         ),
       );
     }

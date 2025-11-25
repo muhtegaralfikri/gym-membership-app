@@ -309,4 +309,96 @@ export class NotificationsService {
       </div>
     `;
   }
+
+  buildPTBookingHtml(params: {
+    heading: string;
+    title: string;
+    subtitle?: string;
+    startText: string;
+    endText: string;
+    durationMinutes: number;
+    trainerName?: string;
+    memberName?: string;
+    role: 'member' | 'trainer';
+    notes?: string | null;
+    actionUrl?: string;
+    footerNote?: string;
+  }) {
+    const infoRows = [
+      params.role === 'member' && params.trainerName
+        ? `<tr>
+            <td style="color:#475569;padding:4px 0;">Trainer</td>
+            <td style="font-weight:600;padding:4px 0;text-align:right;">${params.trainerName}</td>
+          </tr>`
+        : '',
+      params.role === 'trainer' && params.memberName
+        ? `<tr>
+            <td style="color:#475569;padding:4px 0;">Member</td>
+            <td style="font-weight:600;padding:4px 0;text-align:right;">${params.memberName}</td>
+          </tr>`
+        : '',
+      `<tr>
+        <td style="color:#475569;padding:4px 0;">Durasi</td>
+        <td style="font-weight:600;padding:4px 0;text-align:right;">${params.durationMinutes} menit</td>
+      </tr>`,
+    ]
+      .filter(Boolean)
+      .join('');
+
+    const infoTable = infoRows
+      ? `<table role="presentation" width="100%" style="margin-bottom:10px;">${infoRows}</table>`
+      : '';
+
+    const notesBlock = params.notes
+      ? `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;background:#f8fafc;margin-top:12px;">
+          <div style="font-size:12px;color:#64748b;margin-bottom:4px;">Catatan</div>
+          <div style="font-size:14px;color:#0f172a;">${params.notes}</div>
+        </div>`
+      : '';
+
+    const cta = params.actionUrl
+      ? `<a href="${params.actionUrl}" style="display:inline-block;margin-top:16px;background:#059669;color:#fff;padding:12px 18px;border-radius:10px;text-decoration:none;font-weight:700;">Lihat jadwal PT</a>`
+      : '';
+
+    return `
+      <div style="font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f6f7fb;padding:24px;color:#0f172a;">
+        <div style="max-width:640px;margin:0 auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 12px 36px rgba(15,23,42,0.08);">
+          <div style="background:linear-gradient(135deg,#0ea5e9,#10b981);color:white;padding:20px 24px;">
+            <div style="font-size:13px;opacity:0.9;">${params.heading}</div>
+            <div style="font-size:22px;font-weight:800;margin-top:4px;">${params.title}</div>
+            ${params.subtitle ? `<div style="margin-top:6px;font-size:14px;opacity:0.9;">${params.subtitle}</div>` : ''}
+          </div>
+          <div style="padding:24px;">
+            <table role="presentation" width="100%" style="margin-bottom:12px;">
+              <tr>
+                <td style="vertical-align:top;padding-right:8px;">
+                  <div style="font-size:13px;color:#64748b;">Mulai</div>
+                  <div style="font-size:16px;font-weight:700;">${params.startText}</div>
+                </td>
+                <td style="vertical-align:top;padding-left:8px;text-align:right;">
+                  <div style="font-size:13px;color:#64748b;">Sampai</div>
+                  <div style="font-size:16px;font-weight:700;">${params.endText}</div>
+                </td>
+              </tr>
+            </table>
+            ${infoTable}
+            <div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;background:#f0fdf4;margin-top:6px;">
+              <table role="presentation" width="100%" style="font-weight:700;color:#166534;">
+                <tr>
+                  <td style="padding:0;">Status</td>
+                  <td style="padding:0;text-align:right;">Dikonfirmasi</td>
+                </tr>
+              </table>
+            </div>
+            ${notesBlock}
+            ${cta}
+            <p style="margin:18px 0 0 0;font-size:13px;color:#475569;">
+              ${params.footerNote || 'Datang 10 menit lebih awal, dan sampaikan tujuan latihan ke trainer.'}
+            </p>
+          </div>
+        </div>
+        <p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:14px;">Email ini dikirim otomatis, balasan tidak dipantau.</p>
+      </div>
+    `;
+  }
 }
