@@ -50,26 +50,11 @@ const fetchSessions = async () => {
   }
 }
 
-const groupedSessions = computed(() => {
-  const grouped: Record<string, TrainerSession[]> = {}
-  const sorted = [...sessions.value].sort(
-    (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
-  )
-
-  sorted.forEach((session) => {
-    if (session.status === 'CANCELLED') return
-    const key = session.scheduledAt.slice(0, 10)
-    grouped[key] = grouped[key] ? [...grouped[key], session] : [session]
-  })
-
-  return Object.entries(grouped)
-    .map(([dateKey, items]) => ({
-      dateKey,
-      label: formatDate(dateKey),
-      items,
-    }))
-    .sort((a, b) => new Date(a.dateKey).getTime() - new Date(b.dateKey).getTime())
-})
+const agendaSessions = computed(() =>
+  sessions.value
+    .filter((s) => s.status !== 'CANCELLED')
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
+)
 
 const upcomingSessions = computed(() =>
   sessions.value
@@ -87,6 +72,8 @@ const completedSessions = computed(() =>
     .filter((s) => s.status === 'COMPLETED')
     .sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()),
 )
+
+const recentCompleted = computed(() => completedSessions.value.slice(0, 10))
 
 const needsAction = computed(() =>
   sessions.value.filter(
@@ -273,86 +260,112 @@ onMounted(() => {
       </div>
     </header>
 
-<section class="card calendar-card">
-  <div class="section-head">
+    <section class="card calendar-card">
+      <div class="section-head">
         <div>
           <p class="eyebrow">Kalender</p>
           <h3>Agenda personal</h3>
-          <p class="muted helper">
-            Klik satu sesi untuk menandai selesai dan menulis catatan latihan.
-          </p>
+          <p class="muted helper">Lihat daftar jadwal Anda dan tandai selesai langsung dari tabel.</p>
         </div>
         <button type="button" class="ghost" @click="fetchSessions" :disabled="loading">
           {{ loading ? 'Memuat...' : 'Refresh' }}
         </button>
       </div>
 
-      <div v-if="loading" class="skeleton-grid">
-        <div class="skeleton-card" v-for="n in 3" :key="n"></div>
+      <div v-if="loading" class="skeleton-table">
+        <div class="skeleton-line" v-for="n in 5" :key="n"></div>
       </div>
-      <p v-else-if="!groupedSessions.length" class="empty">Belum ada sesi di kalender.</p>
-      <div v-else class="calendar-grid">
-        <div v-for="day in groupedSessions" :key="day.dateKey" class="day-column">
-          <div class="day-head">
-            <p class="eyebrow">{{ day.label }}</p>
-            <span class="pill light">{{ day.items.length }} sesi</span>
-          </div>
-          <div class="session-card" v-for="session in day.items" :key="session.id">
-            <div class="session-meta">
-              <p class="time">{{ formatTimeRange(session) }}</p>
-              <h4>{{ session.member?.name || 'Member' }}</h4>
-              <p class="muted">{{ session.member?.email }}</p>
-              <p v-if="session.notes" class="notes">Catatan: {{ session.notes }}</p>
-            </div>
-            <div class="session-actions">
-              <span :class="['badge', statusBadge(session.status)]">{{ session.status }}</span>
-              <button
-                v-if="session.status !== 'COMPLETED'"
-                type="button"
-                class="ghost"
-                @click="startComplete(session)"
-              >
-                Selesai + catatan
-              </button>
-              <span v-else class="muted small">Sudah selesai</span>
-            </div>
-          </div>
-        </div>
+      <p v-else-if="!agendaSessions.length" class="empty">Belum ada sesi di agenda.</p>
+      <div v-else class="table-wrapper">
+        <table class="data-table responsive">
+          <thead>
+            <tr>
+              <th>Tanggal & waktu</th>
+              <th>Member</th>
+              <th>Status</th>
+              <th>Catatan</th>
+              <th class="action-col">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="session in agendaSessions" :key="session.id">
+              <td data-label="Tanggal & waktu">
+                <div class="cell-main">
+                  <p class="eyebrow">{{ formatDate(session.scheduledAt) }}</p>
+                  <p class="time">{{ formatTimeRange(session) }}</p>
+                </div>
+              </td>
+              <td data-label="Member">
+                <div class="cell-main">
+                  <p class="cell-title">{{ session.member?.name || 'Member' }}</p>
+                  <p class="muted small">{{ session.member?.email || 'Tidak ada email' }}</p>
+                </div>
+              </td>
+              <td class="status-cell" data-label="Status">
+                <span :class="['badge', statusBadge(session.status)]">{{ session.status }}</span>
+              </td>
+              <td class="notes-cell" data-label="Catatan">
+                <span v-if="session.notes">{{ session.notes }}</span>
+                <span v-else class="muted">Tidak ada catatan</span>
+              </td>
+              <td class="table-actions" data-label="Aksi">
+                <button
+                  v-if="session.status !== 'COMPLETED'"
+                  type="button"
+                  class="ghost"
+                  @click="startComplete(session)"
+                >
+                  Selesai + catatan
+                </button>
+                <span v-else class="muted small">Sudah selesai</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
-    <section class="card journal" v-if="completedSessions.length">
+    <section class="card journal" v-if="recentCompleted.length">
       <div class="section-head">
         <div>
           <p class="eyebrow">Log latihan</p>
           <h3>Catatan terkini</h3>
         </div>
       </div>
-      <div class="journal-grid">
-        <article
-          v-for="session in completedSessions.slice(0, 6)"
-          :key="session.id"
-          class="journal-card"
-        >
-          <div class="journal-head">
-            <p class="eyebrow">{{ formatDate(session.scheduledAt) }}</p>
-            <span class="badge completed">Selesai</span>
-          </div>
-          <div class="journal-meta">
-            <div>
-              <p class="micro-label muted">Member</p>
-              <h4>{{ session.member?.name || 'Member' }}</h4>
-            </div>
-            <div class="time-chip">
-              <p class="micro-label muted">Waktu & durasi</p>
-              <p class="time">{{ formatTimeRange(session) }}</p>
-            </div>
-          </div>
-          <div class="note-block">
-            <p class="micro-label muted">Catatan</p>
-            <p class="notes">{{ session.notes || 'Tidak ada catatan' }}</p>
-          </div>
-        </article>
+      <div class="table-wrapper">
+        <table class="data-table dense responsive">
+          <thead>
+            <tr>
+              <th>Tanggal</th>
+              <th>Member</th>
+              <th>Waktu & durasi</th>
+              <th>Catatan</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="session in recentCompleted" :key="session.id">
+              <td data-label="Tanggal">
+                <div class="cell-main">
+                  <p class="eyebrow">{{ formatDate(session.scheduledAt) }}</p>
+                  <span class="badge completed">Selesai</span>
+                </div>
+              </td>
+              <td data-label="Member">
+                <div class="cell-main">
+                  <p class="cell-title">{{ session.member?.name || 'Member' }}</p>
+                  <p class="muted small">{{ session.member?.email || 'Tidak ada email' }}</p>
+                </div>
+              </td>
+              <td data-label="Waktu & durasi">
+                <p class="time">{{ formatTimeRange(session) }}</p>
+              </td>
+              <td class="notes-cell" data-label="Catatan">
+                <span v-if="session.notes">{{ session.notes }}</span>
+                <span v-else class="muted">Tidak ada catatan</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -545,53 +558,79 @@ onMounted(() => {
   margin: 0.25rem 0 0;
 }
 
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 0.8rem;
+.table-wrapper {
+  width: 100%;
+  overflow: auto;
   margin-top: 0.75rem;
-}
-
-.day-column {
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 0.9rem;
-  background: var(--surface-alt);
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-.day-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.session-card {
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 0.75rem;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
   background: var(--surface);
+}
+
+.data-table th,
+.data-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.data-table th {
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+}
+
+.data-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.data-table.dense th,
+.data-table.dense td {
+  padding: 0.5rem 0.65rem;
+}
+
+.cell-main {
   display: flex;
-  justify-content: space-between;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 
-.session-meta h4 {
-  margin: 0.1rem 0;
-}
-
-.session-meta .time {
+.cell-title {
   margin: 0;
   font-weight: 700;
 }
 
-.session-actions {
+.status-cell {
+  width: 130px;
+}
+
+.notes-cell {
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+.action-col {
+  width: 140px;
+  text-align: right;
+}
+
+.table-actions {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.35rem;
+  gap: 0.4rem;
+  justify-content: flex-end;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.data-table.responsive .action-col {
+  text-align: left;
 }
 
 .badge {
@@ -635,59 +674,6 @@ onMounted(() => {
   margin: 1rem 0;
 }
 
-.journal-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.journal-card {
-  border: 0;
-  border-radius: 0;
-  padding: 0.85rem 0 1rem;
-  background: transparent;
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
-  box-shadow: none;
-}
-
-.journal-card + .journal-card {
-  border-top: 1px solid var(--border);
-}
-
-.journal-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
-.journal-head .eyebrow {
-  margin: 0;
-}
-
-.journal-meta {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.15rem 0 0.35rem;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  flex-wrap: wrap;
-}
-
-.journal-meta h4 {
-  margin: 0.1rem 0 0;
-}
-
-.time-chip {
-  text-align: right;
-  min-width: 140px;
-}
-
 .time {
   margin: 0.1rem 0 0;
   font-weight: 700;
@@ -699,19 +685,6 @@ onMounted(() => {
   letter-spacing: 0.04em;
   font-size: 0.78rem;
   font-weight: 700;
-}
-
-.note-block {
-  background: transparent;
-  border: 0;
-  border-top: 1px dashed var(--border);
-  border-radius: 0;
-  padding: 0.55rem 0 0;
-}
-
-.note-block .notes {
-  margin: 0.35rem 0 0;
-  line-height: 1.55;
 }
 
 .journal {
@@ -777,16 +750,18 @@ onMounted(() => {
   border: 1px solid #fecaca;
 }
 
-.skeleton-grid {
+.skeleton-table {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.6rem;
+  gap: 0.55rem;
+  background: var(--surface-alt);
 }
 
-.skeleton-card {
-  height: 120px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+.skeleton-line {
+  height: 14px;
+  border-radius: 8px;
   background: linear-gradient(90deg, var(--surface-alt), var(--surface), var(--surface-alt));
   background-size: 200% 100%;
   animation: shimmer 1.4s infinite;
@@ -859,6 +834,60 @@ button.ghost {
 @media (max-width: 900px) {
   .hero {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .table-wrapper {
+    border: 0;
+    padding: 0;
+  }
+
+  .data-table.responsive {
+    min-width: 0;
+  }
+
+  .data-table.responsive thead {
+    display: none;
+  }
+
+  .data-table.responsive tbody {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .data-table.responsive tr {
+    display: grid;
+    gap: 0.4rem;
+    padding: 0.85rem 0.85rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  .data-table.responsive td {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 0.35rem;
+    border: 0;
+    padding: 0;
+  }
+
+  .data-table.responsive td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .data-table.responsive .table-actions {
+    justify-content: flex-start;
+  }
+
+  .data-table.responsive .status-cell,
+  .data-table.responsive .notes-cell {
+    width: auto;
+    max-width: none;
   }
 }
 </style>
