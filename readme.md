@@ -4,8 +4,8 @@ Fullstack gym membership platform dengan backend NestJS + Prisma (MySQL) dan fro
 
 ## Yang Ada di Proyek Ini
 - **Backend**: NestJS 11, Prisma, MySQL, JWT auth + RBAC (Admin/Member), Midtrans Snap (create txn, webhook settlement, refund/void), promo codes, stacking membership, kelas & check-in token, PT schedule/booking, email notifikasi (Nodemailer/Resend-style), Swagger di `/api`, Helmet + rate limit + CORS.
-- **Frontend**: Vue 3 + TypeScript + Vite, Pinia, Vue Router, Axios, Snap embed pada halaman paket, halaman member (profil, riwayat transaksi/membership), booking kelas & PT, dashboard admin (paket + promo, user, kelas, transaksi).
-- **Data model**: Users/Roles, Packages + PromoCode, Transactions, UserMembership (stacking), GymClass + ClassBooking (QR/check-in token), TrainerProfile + availability + PTSession, AdminLog, Metrics summary.
+- **Frontend**: Vue 3 + TypeScript + Vite, Pinia, Vue Router, Axios, Snap embed pada halaman paket, halaman member (profil, riwayat transaksi/membership), booking kelas & PT, dashboard admin (paket + promo, user, kelas, transaksi), Trainer dashboard dengan completion flow + workout log.
+- **Data model**: Users/Roles, Packages + PromoCode, Transactions, UserMembership (stacking), GymClass + ClassBooking (QR/check-in token), TrainerProfile + availability + PTSession + WorkoutLog, AdminLog, Metrics summary.
 
 ## Struktur Repo
 - `backend/` — API NestJS, Prisma schema/migrations, seed.
@@ -62,6 +62,10 @@ Fullstack gym membership platform dengan backend NestJS + Prisma (MySQL) dan fro
 - Admin: `admin@example.com` / `Admin123!` (dari seed).
 - Member: daftar via `/auth/register` atau tambah manual lewat admin user create.
 
+## Deploy Cepat (server/aaPanel)
+- `cd backend && npm install && npx prisma migrate deploy && npm run build` lalu restart service backend.
+- `cd frontend && npm install && npm run build` lalu deploy hasil build sesuai setup web server.
+
 ## Peta API Ringkas
 - Auth: `POST /auth/register`, `POST /auth/login` (JWT bearer).
 - User: `GET/PUT /users/profile`; Admin `GET/POST/PUT /admin/users`, `GET /admin/users/:id`.
@@ -69,12 +73,13 @@ Fullstack gym membership platform dengan backend NestJS + Prisma (MySQL) dan fro
 - Transactions & Payments: Member `POST /transactions`, `GET /transactions`; Admin `GET /admin/transactions` (+ `?status & search & pagination`), `GET /admin/transactions/export`, `POST /payments/admin/transactions/:id/refund`; Webhook `POST /payments/notification`; Member sync `POST /payments/sync/:orderId`.
 - Memberships: Member `GET /memberships/my-status`; Admin `GET /admin/memberships/user/:id`.
 - Classes: Public `GET /classes`; Member `POST /classes/:id/book`, `GET /classes/bookings/me`; Admin CRUD + bookings `GET/POST/PUT/DELETE /admin/classes*`, check-in endpoints; Check-in token `POST /classes/checkin`.
-- Trainers/PT: Public `GET /trainers`, `GET /trainers/:id/slots?date=YYYY-MM-DD`; Member `POST /trainers/:id/book`, `GET /trainers/sessions/me`; Admin manage trainer profile `POST /admin/trainers`, `.../update`, `.../delete`, availability `POST /trainers/schedule`.
+- Trainers/PT: Public `GET /trainers`, `GET /trainers/:id/slots?date=YYYY-MM-DD`; Member `POST /trainers/:id/book`, `GET /trainers/sessions/me`; Admin manage trainer profile `POST /admin/trainers`, `.../update`, `.../delete`, availability `POST /trainers/schedule`; Trainer/Admin tandai sesi `PATCH /trainer/sessions/:id/complete` (status COMPLETED/NOSHOW, notes, workout log exercises + feedback).
 - Metrics: `GET /metrics/summary` (ringan untuk landing).
 
 ## Catatan Tambahan
 - Pembayaran: transaksi dibuat via Midtrans Snap; webhook memvalidasi signature dan mengaktifkan membership (stacking jika ada yang aktif). Refund/void admin menandai transaksi gagal dan mengakhiri membership terkait.
 - Keamanan: Helmet + rate limit; CORS dibatasi ke `CORS_ORIGINS`; Prisma exception filter sudah dipasang global.
-- Migrations: gunakan `npx prisma migrate dev` untuk dev (butuh shadow DB) dan `npm run prisma:deploy` di server.
+- Migrations: gunakan `npx prisma migrate dev` untuk dev (butuh shadow DB) dan `npm run prisma:deploy` di server. Migrasi terbaru: `20251124093000_add_workout_log` (tabel WorkoutLog).
+- Trainer completion flow: trainer tandai sesi selesai/no-show via dashboard, input notes + workout log (exercises JSON + feedback). WorkoutLog disimpan 1:1 dengan PTSession; no-show menghapus log.
 - Frontend: halaman paket memuat Snap sandbox; check-in kelas lewat `/checkin?code=...`; guard router memakai token dari Pinia/localStorage.
 
