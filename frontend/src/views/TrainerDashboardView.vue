@@ -10,11 +10,23 @@ interface TrainerSession {
   durationMinutes: number
   status: 'BOOKED' | 'COMPLETED' | 'CANCELLED' | 'NOSHOW' | string
   notes?: string | null
+  workoutLog?: {
+    id: number
+    exercises?: WorkoutExercise[] | null
+    feedback?: string | null
+  } | null
   member?: {
     id: number
     name: string
     email?: string | null
   } | null
+}
+
+type WorkoutExercise = {
+  name: string
+  sets?: number | null
+  reps?: number | null
+  weight?: number | null
 }
 
 const auth = useAuthStore()
@@ -27,6 +39,11 @@ const success = ref('')
 const completing = ref(false)
 const selectedSessionId = ref<number | null>(null)
 const notesInput = ref('')
+const feedbackInput = ref('')
+const statusInput = ref<'COMPLETED' | 'NOSHOW'>('COMPLETED')
+const exercisesInput = ref<WorkoutExercise[]>([
+  { name: '', sets: null, reps: null, weight: null },
+])
 
 type SlotInput = { dayOfWeek: number; startTime: string; endTime: string }
 const dayInput = ref<number>(1)
@@ -61,6 +78,7 @@ const upcomingSessions = computed(() =>
     .filter(
       (s) =>
         s.status !== 'CANCELLED' &&
+        s.status !== 'NOSHOW' &&
         new Date(s.scheduledAt).getTime() >= Date.now() &&
         s.status !== 'COMPLETED',
     )
@@ -80,6 +98,7 @@ const needsAction = computed(() =>
     (s) =>
       s.status !== 'CANCELLED' &&
       s.status !== 'COMPLETED' &&
+      s.status !== 'NOSHOW' &&
       new Date(s.scheduledAt).getTime() < Date.now(),
   ),
 )
@@ -100,9 +119,48 @@ const formatTimeRange = (session: TrainerSession) => {
   })} - ${end.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
 }
 
+const normalizeExercises = (data?: WorkoutExercise[] | null) => {
+  if (!data?.length) {
+    return [{ name: '', sets: null, reps: null, weight: null }]
+  }
+  return data.map((ex) => ({
+    name: ex.name || '',
+    sets: ex.sets ?? null,
+    reps: ex.reps ?? null,
+    weight: ex.weight ?? null,
+  }))
+}
+
+const addExerciseRow = () => {
+  exercisesInput.value = [...exercisesInput.value, { name: '', sets: null, reps: null, weight: null }]
+}
+
+const removeExerciseRow = (index: number) => {
+  if (exercisesInput.value.length <= 1) return
+  exercisesInput.value = exercisesInput.value.filter((_, idx) => idx !== index)
+}
+
+const formatExerciseLabel = (exercise: WorkoutExercise) => {
+  const parts = []
+  if (exercise.sets) parts.push(`${exercise.sets} set`)
+  if (exercise.reps) parts.push(`${exercise.reps} rep`)
+  if (exercise.weight !== null && exercise.weight !== undefined && exercise.weight !== 0) {
+    parts.push(`@ ${exercise.weight}kg`)
+  }
+  return parts.length ? `${exercise.name} (${parts.join(' • ')})` : exercise.name
+}
+
+const sessionExercises = (session: TrainerSession) =>
+  Array.isArray(session.workoutLog?.exercises)
+    ? (session.workoutLog?.exercises as WorkoutExercise[])
+    : []
+
 const startComplete = (session: TrainerSession) => {
   selectedSessionId.value = session.id
   notesInput.value = session.notes || ''
+  feedbackInput.value = session.workoutLog?.feedback || ''
+  statusInput.value = session.status === 'NOSHOW' ? 'NOSHOW' : 'COMPLETED'
+  exercisesInput.value = normalizeExercises(sessionExercises(session))
   success.value = ''
   error.value = ''
 }
@@ -110,6 +168,9 @@ const startComplete = (session: TrainerSession) => {
 const closeSheet = () => {
   selectedSessionId.value = null
   notesInput.value = ''
+  feedbackInput.value = ''
+  statusInput.value = 'COMPLETED'
+  exercisesInput.value = [{ name: '', sets: null, reps: null, weight: null }]
 }
 
 const addSlot = () => {
@@ -181,15 +242,37 @@ const submitCompletion = async () => {
   error.value = ''
   success.value = ''
   try {
-    await api.post(`/trainer/sessions/${selectedSessionId.value}/complete`, {
-      notes: notesInput.value || undefined,
-    })
+    const isCompleted = statusInput.value === 'COMPLETED'
+    const payloadExercises = isCompleted
+      ? exercisesInput.value
+          .map((ex) => ({
+            name: ex.name.trim(),
+            sets: ex.sets ?? undefined,
+            reps: ex.reps ?? undefined,
+            weight: ex.weight ?? undefined,
+          }))
+          .filter((ex) => ex.name)
+      : []
+
+    const res = await api.patch<TrainerSession>(
+      `/trainer/sessions/${selectedSessionId.value}/complete`,
+      {
+        notes: notesInput.value || undefined,
+        feedback: isCompleted ? feedbackInput.value || undefined : undefined,
+        status: statusInput.value,
+        exercises: payloadExercises.length ? payloadExercises : undefined,
+      },
+    )
+    const updated = res.data
     sessions.value = sessions.value.map((s) =>
       s.id === selectedSessionId.value
-        ? { ...s, status: 'COMPLETED', notes: notesInput.value }
+        ? { ...s, ...updated }
         : s,
     )
-    success.value = 'Sesi ditandai selesai dan catatan tersimpan.'
+    success.value =
+      statusInput.value === 'NOSHOW'
+        ? 'Sesi ditandai tidak hadir.'
+        : 'Sesi ditandai selesai dan catatan tersimpan.'
     closeSheet()
   } catch (err: any) {
     error.value = err?.response?.data?.message || 'Gagal menandai sesi.'
@@ -305,12 +388,29 @@ onMounted(() => {
                 <span :class="['badge', statusBadge(session.status)]">{{ session.status }}</span>
               </td>
               <td class="notes-cell" data-label="Catatan">
-                <span v-if="session.notes">{{ session.notes }}</span>
-                <span v-else class="muted">Tidak ada catatan</span>
+                <div class="note-stack">
+                  <div>
+                    <p class="micro-label muted">Catatan</p>
+                    <span v-if="session.notes">{{ session.notes }}</span>
+                    <span v-else class="muted">Tidak ada catatan</span>
+                  </div>
+                  <div v-if="session.workoutLog?.feedback">
+                    <p class="micro-label muted">Feedback</p>
+                    <span>{{ session.workoutLog.feedback }}</span>
+                  </div>
+                  <div v-if="sessionExercises(session).length" class="exercise-list">
+                    <p class="micro-label muted">Latihan</p>
+                    <ul>
+                      <li v-for="(exercise, idx) in sessionExercises(session)" :key="idx">
+                        {{ formatExerciseLabel(exercise) }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </td>
               <td class="table-actions" data-label="Aksi">
                 <button
-                  v-if="session.status !== 'COMPLETED'"
+                  v-if="session.status !== 'COMPLETED' && session.status !== 'NOSHOW'"
                   type="button"
                   class="ghost"
                   @click="startComplete(session)"
@@ -360,8 +460,25 @@ onMounted(() => {
                 <p class="time">{{ formatTimeRange(session) }}</p>
               </td>
               <td class="notes-cell" data-label="Catatan">
-                <span v-if="session.notes">{{ session.notes }}</span>
-                <span v-else class="muted">Tidak ada catatan</span>
+                <div class="note-stack">
+                  <div>
+                    <p class="micro-label muted">Catatan</p>
+                    <span v-if="session.notes">{{ session.notes }}</span>
+                    <span v-else class="muted">Tidak ada catatan</span>
+                  </div>
+                  <div v-if="session.workoutLog?.feedback">
+                    <p class="micro-label muted">Feedback</p>
+                    <span>{{ session.workoutLog.feedback }}</span>
+                  </div>
+                  <div v-if="sessionExercises(session).length" class="exercise-list">
+                    <p class="micro-label muted">Latihan</p>
+                    <ul>
+                      <li v-for="(exercise, idx) in sessionExercises(session)" :key="idx">
+                        {{ formatExerciseLabel(exercise) }}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -421,12 +538,62 @@ onMounted(() => {
           </div>
           <button type="button" class="ghost" @click="closeSheet">Tutup</button>
         </div>
+        <div class="sheet-grid">
+          <label class="field inline">
+            <span>Status sesi</span>
+            <select v-model="statusInput">
+              <option value="COMPLETED">Selesai</option>
+              <option value="NOSHOW">Tidak hadir</option>
+            </select>
+          </label>
+        </div>
         <label class="field">
           <span>Catatan</span>
           <textarea
             v-model="notesInput"
             rows="4"
             placeholder="Contoh: Hari ini Budi latihan Deadlift 60kg."
+          ></textarea>
+        </label>
+        <div class="exercise-stack">
+          <div class="exercise-head">
+            <p class="micro-label muted">Workout log</p>
+            <button type="button" class="ghost small-ghost" @click="addExerciseRow">+ Tambah latihan</button>
+          </div>
+          <div class="exercise-row" v-for="(exercise, idx) in exercisesInput" :key="idx">
+            <input
+              v-model="exercise.name"
+              type="text"
+              placeholder="Nama latihan"
+            />
+            <input
+              v-model.number="exercise.sets"
+              type="number"
+              min="0"
+              placeholder="Set"
+            />
+            <input
+              v-model.number="exercise.reps"
+              type="number"
+              min="0"
+              placeholder="Rep"
+            />
+            <input
+              v-model.number="exercise.weight"
+              type="number"
+              min="0"
+              step="0.5"
+              placeholder="Kg"
+            />
+            <button type="button" class="ghost small-ghost" @click="removeExerciseRow(idx)">✕</button>
+          </div>
+        </div>
+        <label class="field">
+          <span>Feedback untuk member</span>
+          <textarea
+            v-model="feedbackInput"
+            rows="3"
+            placeholder="Contoh: Jaga tempo, kurangi lengkungan punggung."
           ></textarea>
         </label>
         <div class="sheet-actions">
@@ -614,6 +781,17 @@ onMounted(() => {
 .notes-cell {
   max-width: 320px;
   line-height: 1.5;
+}
+
+.note-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.note-stack ul {
+  padding-left: 1.1rem;
+  margin: 0.2rem 0 0;
 }
 
 .action-col {
@@ -818,6 +996,47 @@ textarea {
   resize: vertical;
 }
 
+.sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+select,
+.exercise-row input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.65rem;
+  background: var(--surface-alt);
+  font: inherit;
+}
+
+.exercise-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.exercise-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.exercise-row {
+  display: grid;
+  grid-template-columns: 1.4fr repeat(3, 0.8fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.small-ghost {
+  padding: 0.35rem 0.6rem;
+}
+
 .sheet-actions {
   margin-top: 0.85rem;
   display: flex;
@@ -888,6 +1107,36 @@ button.ghost {
   .data-table.responsive .notes-cell {
     width: auto;
     max-width: none;
+  }
+
+  .exercise-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      'name name'
+      'sets reps'
+      'weight remove';
+    gap: 0.35rem;
+  }
+
+  .exercise-row input:nth-child(1) {
+    grid-area: name;
+  }
+
+  .exercise-row input:nth-child(2) {
+    grid-area: sets;
+  }
+
+  .exercise-row input:nth-child(3) {
+    grid-area: reps;
+  }
+
+  .exercise-row input:nth-child(4) {
+    grid-area: weight;
+  }
+
+  .exercise-row .small-ghost {
+    grid-area: remove;
+    justify-self: start;
   }
 }
 </style>
