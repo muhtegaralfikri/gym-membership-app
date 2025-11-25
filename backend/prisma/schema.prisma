@@ -46,7 +46,7 @@ model Package {
   isActive        Boolean          @default(true)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
-  bundleItems     String?          @db.LongText
+  bundleItems     Json?
   promoExpiresAt  DateTime?
   promoPrice      Decimal?         @db.Decimal(10, 2)
   ptSessionsQuota Int              @default(0)
