@@ -235,30 +235,40 @@ export class NotificationsService {
   }) {
     const infoRows = [
       params.location
-        ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span style="color:#475569;">Lokasi</span><span style="font-weight:600;">${params.location}</span>
-          </div>`
+        ? `<tr>
+            <td style="color:#475569;padding:4px 0;">Lokasi</td>
+            <td style="font-weight:600;padding:4px 0;text-align:right;">${params.location}</td>
+          </tr>`
         : '',
       params.instructor
-        ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span style="color:#475569;">Instruktur/Trainer</span><span style="font-weight:600;">${params.instructor}</span>
-          </div>`
+        ? `<tr>
+            <td style="color:#475569;padding:4px 0;">Instruktur/Trainer</td>
+            <td style="font-weight:600;padding:4px 0;text-align:right;">${params.instructor}</td>
+          </tr>`
         : '',
       params.bookingId
-        ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-            <span style="color:#475569;">ID Booking</span><span style="font-weight:600;">#${params.bookingId}</span>
-          </div>`
+        ? `<tr>
+            <td style="color:#475569;padding:4px 0;">ID Booking</td>
+            <td style="font-weight:600;padding:4px 0;text-align:right;">#${params.bookingId}</td>
+          </tr>`
         : '',
     ]
       .filter(Boolean)
       .join('');
 
+    const infoTable = infoRows
+      ? `<table role="presentation" width="100%" style="margin-bottom:10px;">${infoRows}</table>`
+      : '';
+
     const highlight =
       params.highlightLabel && params.highlightValue
         ? `<div style="border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;background:#f8fafc;margin-top:10px;">
-            <div style="display:flex;justify-content:space-between;font-weight:600;">
-              <span>${params.highlightLabel}</span><span>${params.highlightValue}</span>
-            </div>
+            <table role="presentation" width="100%" style="font-weight:600;">
+              <tr>
+                <td style="padding:0;">${params.highlightLabel}</td>
+                <td style="padding:0;text-align:right;">${params.highlightValue}</td>
+              </tr>
+            </table>
           </div>`
         : '';
 
@@ -275,17 +285,19 @@ export class NotificationsService {
             ${params.subtitle ? `<div style="margin-top:6px;font-size:14px;opacity:0.9;">${params.subtitle}</div>` : ''}
           </div>
           <div style="padding:24px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-              <div>
-                <div style="font-size:13px;color:#64748b;">Mulai</div>
-                <div style="font-size:16px;font-weight:700;">${params.startText}</div>
-              </div>
-              <div style="text-align:right;">
-                <div style="font-size:13px;color:#64748b;">Sampai</div>
-                <div style="font-size:16px;font-weight:700;">${params.endText}</div>
-              </div>
-            </div>
-            ${infoRows}
+            <table role="presentation" width="100%" style="margin-bottom:12px;">
+              <tr>
+                <td style="vertical-align:top;padding-right:8px;">
+                  <div style="font-size:13px;color:#64748b;">Mulai</div>
+                  <div style="font-size:16px;font-weight:700;">${params.startText}</div>
+                </td>
+                <td style="vertical-align:top;padding-left:8px;text-align:right;">
+                  <div style="font-size:13px;color:#64748b;">Sampai</div>
+                  <div style="font-size:16px;font-weight:700;">${params.endText}</div>
+                </td>
+              </tr>
+            </table>
+            ${infoTable}
             ${highlight}
             ${cta}
             <p style="margin:18px 0 0 0;font-size:13px;color:#475569;">
