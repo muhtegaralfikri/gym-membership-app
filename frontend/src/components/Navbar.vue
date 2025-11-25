@@ -90,10 +90,9 @@ watch(
           <RouterLink
             v-if="authStore.isTrainer"
             to="/trainer"
-            class="highlight"
             @click="closeMenu"
           >
-            Dashboard Trainer
+            Dashboard
           </RouterLink>
           <div v-if="authStore.isAdmin" class="admin-menu" :class="{ open: adminMenuOpen }">
             <button type="button" class="admin-toggle" @click="toggleAdminMenu">

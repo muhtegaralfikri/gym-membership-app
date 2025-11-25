@@ -329,11 +329,29 @@ onMounted(() => {
         </div>
       </div>
       <div class="journal-grid">
-        <article v-for="session in completedSessions.slice(0, 6)" :key="session.id" class="journal-card">
-          <p class="eyebrow">{{ formatDate(session.scheduledAt) }}</p>
-          <h4>{{ session.member?.name || 'Member' }}</h4>
-          <p class="muted">{{ formatTimeRange(session) }}</p>
-          <p class="notes">{{ session.notes || 'Tidak ada catatan' }}</p>
+        <article
+          v-for="session in completedSessions.slice(0, 6)"
+          :key="session.id"
+          class="journal-card"
+        >
+          <div class="journal-head">
+            <p class="eyebrow">{{ formatDate(session.scheduledAt) }}</p>
+            <span class="badge completed">Selesai</span>
+          </div>
+          <div class="journal-meta">
+            <div>
+              <p class="micro-label muted">Member</p>
+              <h4>{{ session.member?.name || 'Member' }}</h4>
+            </div>
+            <div class="time-chip">
+              <p class="micro-label muted">Waktu & durasi</p>
+              <p class="time">{{ formatTimeRange(session) }}</p>
+            </div>
+          </div>
+          <div class="note-block">
+            <p class="micro-label muted">Catatan</p>
+            <p class="notes">{{ session.notes || 'Tidak ada catatan' }}</p>
+          </div>
         </article>
       </div>
     </section>
@@ -618,16 +636,86 @@ onMounted(() => {
 }
 
 .journal-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
 .journal-card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 0.85rem;
-  background: var(--surface-alt);
+  border: 0;
+  border-radius: 0;
+  padding: 0.85rem 0 1rem;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-shadow: none;
+}
+
+.journal-card + .journal-card {
+  border-top: 1px solid var(--border);
+}
+
+.journal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.journal-head .eyebrow {
+  margin: 0;
+}
+
+.journal-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.15rem 0 0.35rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  flex-wrap: wrap;
+}
+
+.journal-meta h4 {
+  margin: 0.1rem 0 0;
+}
+
+.time-chip {
+  text-align: right;
+  min-width: 140px;
+}
+
+.time {
+  margin: 0.1rem 0 0;
+  font-weight: 700;
+}
+
+.micro-label {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.note-block {
+  background: transparent;
+  border: 0;
+  border-top: 1px dashed var(--border);
+  border-radius: 0;
+  padding: 0.55rem 0 0;
+}
+
+.note-block .notes {
+  margin: 0.35rem 0 0;
+  line-height: 1.55;
+}
+
+.journal {
+  padding: 1.25rem;
 }
 
 .schedule-card {
