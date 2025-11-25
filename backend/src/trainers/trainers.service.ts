@@ -119,6 +119,7 @@ export class TrainersService {
             trainerProfile: true,
           },
         },
+        workoutLog: true,
       },
     });
   }
@@ -138,6 +139,7 @@ export class TrainersService {
             email: true,
           },
         },
+        workoutLog: true,
       },
     });
   }
@@ -146,6 +148,9 @@ export class TrainersService {
     trainerId: number,
     sessionId: number,
     notes?: string,
+    status?: PTSessionStatus,
+    exercises?: Prisma.JsonValue,
+    feedback?: string,
     allowAdminOverride = false,
   ) {
     const session = await this.prisma.pTSession.findUnique({
@@ -170,11 +175,46 @@ export class TrainersService {
       throw new BadRequestException('Sesi yang dibatalkan tidak bisa ditandai selesai');
     }
 
-    return this.prisma.pTSession.update({
+    const targetStatus: PTSessionStatus =
+      status === PTSessionStatus.COMPLETED || status === PTSessionStatus.NOSHOW
+        ? status
+        : PTSessionStatus.COMPLETED;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.pTSession.update({
+        where: { id: sessionId },
+        data: {
+          status: targetStatus,
+          notes: notes ?? session.notes,
+        },
+      });
+
+      if (targetStatus === PTSessionStatus.NOSHOW) {
+        await tx.workoutLog.deleteMany({ where: { sessionId } });
+        return;
+      }
+
+      if (exercises || feedback) {
+        await tx.workoutLog.upsert({
+          where: { sessionId },
+          update: {
+            exercises: exercises ?? Prisma.JsonNull,
+            feedback: feedback ?? null,
+          },
+          create: {
+            sessionId,
+            exercises: exercises ?? Prisma.JsonNull,
+            feedback: feedback ?? null,
+          },
+        });
+      }
+    });
+
+    return this.prisma.pTSession.findUnique({
       where: { id: sessionId },
-      data: {
-        status: PTSessionStatus.COMPLETED,
-        notes: notes ?? session.notes,
+      include: {
+        member: { select: { id: true, name: true, email: true } },
+        workoutLog: true,
       },
     });
   }

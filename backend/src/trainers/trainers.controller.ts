@@ -6,6 +6,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -24,6 +25,7 @@ import { UserResponseDto } from 'src/users/dto/user-response.dto';
 import { CreateTrainerDto } from './dto/create-trainer.dto';
 import { UpdateTrainerDto } from './dto/update-trainer.dto';
 import { CompleteSessionDto } from './dto/complete-session.dto';
+import { Prisma } from '@prisma/client';
 
 @ApiTags('Trainers')
 @Controller()
@@ -100,10 +102,41 @@ export class TrainersController {
     @Req() req: Request & { user: UserResponseDto },
   ) {
     const allowAdminOverride = req.user.roleId === Role.Admin;
+    const exercises = dto.exercises
+      ? (dto.exercises as unknown as Prisma.JsonArray)
+      : undefined;
     return this.trainersService.completeSession(
       req.user.id,
       id,
       dto.notes,
+      dto.status,
+      exercises,
+      dto.feedback,
+      allowAdminOverride,
+    );
+  }
+
+  @Patch('trainer/sessions/:id/complete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Trainer, Role.Admin)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update PT session status (completed/no-show) with workout log' })
+  completeSessionPatch(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: CompleteSessionDto,
+    @Req() req: Request & { user: UserResponseDto },
+  ) {
+    const allowAdminOverride = req.user.roleId === Role.Admin;
+    const exercises = dto.exercises
+      ? (dto.exercises as unknown as Prisma.JsonArray)
+      : undefined;
+    return this.trainersService.completeSession(
+      req.user.id,
+      id,
+      dto.notes,
+      dto.status,
+      exercises,
+      dto.feedback,
       allowAdminOverride,
     );
   }

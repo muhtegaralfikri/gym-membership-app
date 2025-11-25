@@ -132,12 +132,23 @@ model PTSession {
   
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+  workoutLog      WorkoutLog?
 
   // Ini adalah fix untuk mencegah double booking (Race Condition)
   @@unique([trainerId, scheduledAt])
   
   // Index ini opsional (biasanya otomatis), tapi jika ada di stashed changes bisa disimpan
   @@index([trainerId], map: "PTSession_trainerId_fkey")
+}
+
+model WorkoutLog {
+  id        Int       @id @default(autoincrement())
+  sessionId Int       @unique
+  session   PTSession @relation(fields: [sessionId], references: [id])
+  exercises Json
+  feedback  String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model GymClass {
