@@ -8,11 +8,13 @@ export class NotificationsService {
   private readonly gmailUser?: string;
   private readonly gmailPass?: string;
   private readonly emailFrom?: string;
+  private readonly resendApiKey?: string;
   private transporter?: Transporter;
 
   constructor(private readonly config: ConfigService) {
     this.gmailUser = this.config.get<string>('GMAIL_USER');
     this.gmailPass = this.config.get<string>('GMAIL_PASS');
+    this.resendApiKey = this.config.get<string>('RESEND_API_KEY');
     this.emailFrom = this.config.get<string>('EMAIL_FROM') || this.gmailUser;
 
     if (this.gmailUser && this.gmailPass) {
@@ -156,8 +158,17 @@ export class NotificationsService {
    * Send email using Gmail + Nodemailer.
    */
   async sendEmail(to: string, subject: string, text: string, html?: string) {
+    if (this.resendApiKey) {
+      try {
+        await this.sendViaResend({ to, subject, text, html });
+        return { ok: true, provider: 'resend' };
+      } catch (err) {
+        this.logger.error(`Resend send failed: ${String(err)}`);
+      }
+    }
+
     if (!this.transporter) {
-      const reason = 'Gmail transporter not configured; email skipped.';
+      const reason = 'No email provider configured; email skipped.';
       this.logger.warn(reason);
       return { ok: false, reason };
     }
@@ -174,6 +185,37 @@ export class NotificationsService {
     } catch (err) {
       this.logger.error(`Email send failed: ${String(err)}`);
       return { ok: false, reason: String(err) };
+    }
+  }
+
+  private async sendViaResend(params: {
+    to: string;
+    subject: string;
+    text: string;
+    html?: string;
+  }) {
+    if (!this.resendApiKey) {
+      throw new Error('Resend API key not configured');
+    }
+
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${this.resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: this.emailFrom || this.gmailUser,
+        to: params.to,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+      }),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`Resend responded ${response.status}: ${body}`);
     }
   }
 
